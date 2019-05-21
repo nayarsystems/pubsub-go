@@ -75,3 +75,25 @@ func TestUnsubscribeAll(t *testing.T) {
 	msg := sub.Get(0)
 	assert.Nil(t, msg)
 }
+
+func TestUnsubscribe(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(10, "a", "b", "c")
+	sub.Unsubscribe("a", "b")
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "a data"})
+	assert.Equal(t, 0, n)
+	n = ps.Publish(&ps.Msg{To: "b", Data: "b data"})
+	assert.Equal(t, 0, n)
+	n = ps.Publish(&ps.Msg{To: "c", Data: "c data"})
+	assert.Equal(t, 1, n)
+
+	msg := sub.Get(0)
+	assert.Equal(t, "c", msg.To)
+	assert.Equal(t, "c data", msg.Data)
+	msg = sub.Get(0)
+	assert.Nil(t, msg)
+	msg = sub.Get(0)
+	assert.Nil(t, msg)
+}

@@ -88,6 +88,25 @@ func (s *Subscriber) Get(timeout time.Duration) *Msg {
 	}
 }
 
+// Unsubscribe from topics
+func (s *Subscriber) Unsubscribe(topic ...string) {
+	muSubs.Lock()
+	defer muSubs.Unlock()
+
+	for _, to := range topic {
+		sub := subs[to]
+		if sub != nil {
+			sub.muSubs.Lock()
+			delete(sub.subs, s)
+			// Delete subscription when loses its last subscriber
+			if len(sub.subs) == 0 {
+				delete(subs, to)
+			}
+			sub.muSubs.Unlock()
+		}
+	}
+}
+
 // UnsubscribeAll removes all subscribers
 func UnsubscribeAll() {
 	muSubs.Lock()
