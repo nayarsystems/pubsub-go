@@ -91,6 +91,10 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 	}
 
 	if sub != nil {
+		if !op.Sticky {
+			sub.sticky = nil
+		}
+
 		sub.muSubs.RLock()
 		for subscriber := range sub.subs {
 			subscriber.ch <- msg
