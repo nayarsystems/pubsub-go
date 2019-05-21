@@ -1,6 +1,9 @@
 package ps
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 // Msg is a pubsub message
 type Msg struct {
@@ -69,6 +72,18 @@ func Publish(msg *Msg) int {
 }
 
 // Get returns msg for a topic with a timeout (0:return inmediately, <0:block until reception, >0:block for millis or until reception)
-func (s *Subscriber) Get(timeout int) *Msg {
-	return <-s.ch
+func (s *Subscriber) Get(timeout time.Duration) *Msg {
+	if timeout < 0 {
+		return <-s.ch
+	}
+
+	t := time.NewTimer(timeout)
+	defer t.Stop()
+
+	select {
+	case msg := <-s.ch:
+		return msg
+	case <-t.C:
+		return nil
+	}
 }
