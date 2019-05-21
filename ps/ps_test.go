@@ -9,6 +9,7 @@ import (
 )
 
 func TestSubscribeSimple(t *testing.T) {
+	ps.UnsubscribeAll()
 	sub := ps.NewSubscriber(10, "a")
 
 	n := ps.Publish(&ps.Msg{To: "a", Data: "b"})
@@ -20,6 +21,7 @@ func TestSubscribeSimple(t *testing.T) {
 }
 
 func TestGetWithoutTimeout(t *testing.T) {
+	ps.UnsubscribeAll()
 	sub := ps.NewSubscriber(10, "a")
 
 	t0 := time.Now()
@@ -31,6 +33,7 @@ func TestGetWithoutTimeout(t *testing.T) {
 }
 
 func TestGetWithTimeout(t *testing.T) {
+	ps.UnsubscribeAll()
 	sub := ps.NewSubscriber(10, "a")
 
 	t0 := time.Now()
@@ -43,6 +46,7 @@ func TestGetWithTimeout(t *testing.T) {
 }
 
 func TestGetBlocking(t *testing.T) {
+	ps.UnsubscribeAll()
 	sub := ps.NewSubscriber(10, "a")
 
 	go func() {
@@ -58,4 +62,16 @@ func TestGetBlocking(t *testing.T) {
 	assert.Equal(t, msg.Data, "b")
 	assert.True(t, t1.Sub(t0) >= 5*time.Millisecond)
 	assert.True(t, t1.Sub(t0) < 6*time.Millisecond)
+}
+
+func TestUnsubscribeAll(t *testing.T) {
+	sub := ps.NewSubscriber(10, "a")
+
+	ps.UnsubscribeAll()
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "b"})
+	assert.Equal(t, 0, n)
+
+	msg := sub.Get(0)
+	assert.Nil(t, msg)
 }

@@ -87,3 +87,11 @@ func (s *Subscriber) Get(timeout time.Duration) *Msg {
 		return nil
 	}
 }
+
+// UnsubscribeAll removes all subscribers
+func UnsubscribeAll() {
+	muSubs.Lock()
+	defer muSubs.Unlock()
+
+	subs = map[string]*subscription{}
+}
