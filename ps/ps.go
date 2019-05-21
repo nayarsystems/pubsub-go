@@ -1,5 +1,7 @@
 package ps
 
+import "sync"
+
 // Msg is a pubsub message
 type Msg struct {
 	To   string
@@ -13,9 +15,11 @@ type Subscriber struct {
 
 type subscription struct {
 	sticky interface{}
+	muSubs sync.RWMutex
 	subs   map[*Subscriber]bool
 }
 
+var muSubs sync.RWMutex
 var subs = map[string]*subscription{}
 
 // NewSubscriber creates subscriber to topics with a queue that can hold up to size messages
@@ -23,6 +27,9 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 	newSub := &Subscriber{
 		ch: make(chan *Msg, size),
 	}
+
+	muSubs.Lock()
+	defer muSubs.Unlock()
 
 	for _, to := range topic {
 		sub := subs[to]
@@ -33,7 +40,9 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 			}
 			subs[to] = sub
 		}
+		sub.muSubs.Lock()
 		sub.subs[newSub] = true
+		sub.muSubs.Unlock()
 	}
 
 	return newSub
@@ -41,17 +50,22 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 
 // Publish message returning number of deliveries done
 func Publish(msg *Msg) int {
-	delivers := 0
+	delivered := 0
 
+	muSubs.RLock()
 	subscription := subs[msg.To]
+	muSubs.RUnlock()
+
 	if subscription != nil {
+		subscription.muSubs.RLock()
 		for sub := range subscription.subs {
 			sub.ch <- msg
-			delivers++
+			delivered++
 		}
+		subscription.muSubs.RUnlock()
 	}
 
-	return delivers
+	return delivered
 }
 
 // Get returns msg for a topic with a timeout (0:return inmediately, <0:block until reception, >0:block for millis or until reception)
