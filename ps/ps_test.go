@@ -97,3 +97,21 @@ func TestUnsubscribe(t *testing.T) {
 	msg = sub.Get(0)
 	assert.Nil(t, msg)
 }
+
+func TestSubscribeToMultipleTopics(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(10, "a", "b")
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "a data"})
+	assert.Equal(t, 1, n)
+	n = ps.Publish(&ps.Msg{To: "b", Data: "b data"})
+	assert.Equal(t, 1, n)
+
+	msg := sub.Get(0)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "a data", msg.Data)
+	msg = sub.Get(0)
+	assert.Equal(t, "b", msg.To)
+	assert.Equal(t, "b data", msg.Data)
+}
