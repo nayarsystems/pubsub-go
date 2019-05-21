@@ -188,3 +188,17 @@ func TestMultipleSubscribersToSameTopicAndOneUnsubscribesWithUnsubscribeAll(t *t
 	msg = sub2.Get(0)
 	assert.Nil(t, msg)
 }
+
+func TestSticky(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "b"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+
+	sub := ps.NewSubscriber(10, "a")
+
+	msg := sub.Get(0)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "b", msg.Data)
+	assert.Equal(t, true, msg.Old)
+}

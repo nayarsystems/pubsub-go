@@ -9,6 +9,12 @@ import (
 type Msg struct {
 	To   string
 	Data string
+	Old  bool
+}
+
+// MsgOpts are message options
+type MsgOpts struct {
+	Sticky bool
 }
 
 // Subscriber is a subscription to one or more topics
@@ -17,7 +23,7 @@ type Subscriber struct {
 }
 
 type subscription struct {
-	sticky interface{}
+	sticky *Msg
 	muSubs sync.RWMutex
 	subs   map[*Subscriber]bool
 }
@@ -38,7 +44,7 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 		sub := subs[to]
 		if sub == nil {
 			sub = &subscription{
-				sticky: false,
+				sticky: nil,
 				subs:   map[*Subscriber]bool{},
 			}
 			subs[to] = sub
@@ -46,26 +52,51 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 		sub.muSubs.Lock()
 		sub.subs[newSub] = true
 		sub.muSubs.Unlock()
+
+		if sub.sticky != nil {
+			newSub.ch <- sub.sticky
+		}
 	}
 
 	return newSub
 }
 
-// Publish message returning number of deliveries done
-func Publish(msg *Msg) int {
+// Publish message returning with optional options. Returns number of deliveries done
+func Publish(msg *Msg, opts ...*MsgOpts) int {
 	delivered := 0
 
-	muSubs.RLock()
-	subscription := subs[msg.To]
-	muSubs.RUnlock()
+	var op *MsgOpts
+	if len(opts) > 0 {
+		op = opts[0]
+	} else {
+		op = &MsgOpts{}
+	}
 
-	if subscription != nil {
-		subscription.muSubs.RLock()
-		for sub := range subscription.subs {
-			sub.ch <- msg
+	muSubs.Lock()
+	defer muSubs.Unlock()
+
+	sub := subs[msg.To]
+
+	if op.Sticky {
+		if sub == nil {
+			sub = &subscription{
+				sticky: nil,
+				subs:   map[*Subscriber]bool{},
+			}
+			subs[msg.To] = sub
+		}
+		msgCopy := *msg
+		msgCopy.Old = true
+		sub.sticky = &msgCopy
+	}
+
+	if sub != nil {
+		sub.muSubs.RLock()
+		for subscriber := range sub.subs {
+			subscriber.ch <- msg
 			delivered++
 		}
-		subscription.muSubs.RUnlock()
+		sub.muSubs.RUnlock()
 	}
 
 	return delivered
