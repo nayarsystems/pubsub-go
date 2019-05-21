@@ -202,3 +202,19 @@ func TestSticky(t *testing.T) {
 	assert.Equal(t, "b", msg.Data)
 	assert.Equal(t, true, msg.Old)
 }
+
+func TestStickyGetLastPublishedValue(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "a1"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+	n = ps.Publish(&ps.Msg{To: "a", Data: "a2"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+
+	sub := ps.NewSubscriber(10, "a")
+
+	msg := sub.Get(0)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "a2", msg.Data)
+	assert.Equal(t, true, msg.Old)
+}
