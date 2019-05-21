@@ -107,6 +107,22 @@ func (s *Subscriber) Unsubscribe(topic ...string) {
 	}
 }
 
+// UnsubscribeAll unsubscribes from all topics
+func (s *Subscriber) UnsubscribeAll() {
+	muSubs.Lock()
+	defer muSubs.Unlock()
+
+	for to, sub := range subs {
+		sub.muSubs.Lock()
+		delete(sub.subs, s)
+		// Delete subscription when loses its last subscriber
+		if len(sub.subs) == 0 {
+			delete(subs, to)
+		}
+		sub.muSubs.Unlock()
+	}
+}
+
 // UnsubscribeAll removes all subscribers
 func UnsubscribeAll() {
 	muSubs.Lock()

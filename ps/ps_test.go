@@ -133,3 +133,20 @@ func TestMultipleSubscribersToSameTopic(t *testing.T) {
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
 }
+
+func TestUnsubscribeAllOnSubscriber(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(10, "a", "b")
+	sub.UnsubscribeAll()
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "a data"})
+	assert.Equal(t, 0, n)
+	n = ps.Publish(&ps.Msg{To: "b", Data: "b data"})
+	assert.Equal(t, 0, n)
+
+	msg := sub.Get(0)
+	assert.Nil(t, msg)
+	msg = sub.Get(0)
+	assert.Nil(t, msg)
+}
