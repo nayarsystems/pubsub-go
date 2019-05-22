@@ -25,10 +25,14 @@ type Subscriber struct {
 	overflow uint32
 }
 
+type subscriberInfo struct {
+	hidden bool
+}
+
 type subscription struct {
 	sticky *Msg
 	muSubs sync.RWMutex
-	subs   map[*Subscriber]bool
+	subs   map[*Subscriber]*subscriberInfo
 }
 
 var muSubs sync.RWMutex
@@ -43,17 +47,18 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 	muSubs.Lock()
 	defer muSubs.Unlock()
 
-	for _, to := range topic {
+	for _, fullTo := range topic {
+		to := strings.Split(fullTo, " ")[0]
 		sub := subs[to]
 		if sub == nil {
 			sub = &subscription{
 				sticky: nil,
-				subs:   map[*Subscriber]bool{},
+				subs:   map[*Subscriber]*subscriberInfo{},
 			}
 			subs[to] = sub
 		}
 		sub.muSubs.Lock()
-		sub.subs[newSub] = true
+		sub.subs[newSub] = parseFlags(fullTo)
 		sub.muSubs.Unlock()
 
 		if sub.sticky != nil {
@@ -62,6 +67,22 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 	}
 
 	return newSub
+}
+
+func parseFlags(to string) *subscriberInfo {
+	info := &subscriberInfo{}
+	parts := strings.Split(to, " ")
+
+	if len(parts) == 2 {
+		for _, c := range parts[1] {
+			switch c {
+			case 'h':
+				info.hidden = true
+			}
+		}
+	}
+
+	return info
 }
 
 // Publish message returning with optional options. Returns number of deliveries done
@@ -89,7 +110,7 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 			if sub == nil {
 				sub = &subscription{
 					sticky: nil,
-					subs:   map[*Subscriber]bool{},
+					subs:   map[*Subscriber]*subscriberInfo{},
 				}
 				subs[to] = sub
 			}
@@ -104,14 +125,16 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 			}
 
 			sub.muSubs.RLock()
-			for subscriber := range sub.subs {
+			for subscriber, subInfo := range sub.subs {
 				select {
 				case subscriber.ch <- msg:
 				default:
 					atomic.AddUint32(&subscriber.overflow, 1)
 					continue
 				}
-				delivered++
+				if !subInfo.hidden {
+					delivered++
+				}
 			}
 			sub.muSubs.RUnlock()
 		}

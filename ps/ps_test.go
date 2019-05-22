@@ -308,3 +308,17 @@ func TestSendToParentTopics(t *testing.T) {
 	assert.Equal(t, "whatever", msg.Data)
 	assert.Equal(t, false, msg.Old)
 }
+
+func TestHiddenFlagDoesntCountAsDelivered(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(1, "a h")
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "b"})
+	assert.Equal(t, 0, n)
+
+	msg := sub.Get(0)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "b", msg.Data)
+	assert.Equal(t, false, msg.Old)
+}
