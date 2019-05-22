@@ -31,14 +31,14 @@ type subscriberInfo struct {
 	stickyFromChildren bool
 }
 
-type subscription struct {
+type topicInfo struct {
 	sticky *Msg
 	muSubs sync.RWMutex
 	subs   map[*Subscriber]*subscriberInfo
 }
 
 var muSubs sync.RWMutex
-var subs = map[string]*subscription{}
+var topics = map[string]*topicInfo{}
 
 // NewSubscriber creates subscriber to topics with a queue that can hold up to size messages
 func NewSubscriber(size int, topic ...string) *Subscriber {
@@ -51,23 +51,23 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 
 	for _, fullTo := range topic {
 		to := strings.Split(fullTo, " ")[0]
-		sub := subs[to]
-		if sub == nil {
-			sub = &subscription{
+		toInfo := topics[to]
+		if toInfo == nil {
+			toInfo = &topicInfo{
 				sticky: nil,
 				subs:   map[*Subscriber]*subscriberInfo{},
 			}
-			subs[to] = sub
+			topics[to] = toInfo
 		}
-		sub.muSubs.Lock()
+		toInfo.muSubs.Lock()
 		subInfo := parseFlags(fullTo)
-		sub.subs[newSub] = subInfo
-		sub.muSubs.Unlock()
+		toInfo.subs[newSub] = subInfo
+		toInfo.muSubs.Unlock()
 
-		for otherTo, otherSub := range subs {
+		for otherTo, otherToInfo := range topics {
 			isChild := strings.HasPrefix(otherTo, to+".")
-			if otherSub.sticky != nil && !subInfo.ignoreSticky && (otherTo == to || (isChild && subInfo.stickyFromChildren)) {
-				newSub.ch <- otherSub.sticky
+			if otherToInfo.sticky != nil && !subInfo.ignoreSticky && (otherTo == to || (isChild && subInfo.stickyFromChildren)) {
+				newSub.ch <- otherToInfo.sticky
 			}
 		}
 	}
@@ -114,28 +114,28 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 	for len(toParts) > 0 {
 		to := strings.Join(toParts, ".")
 		toParts = toParts[:len(toParts)-1]
-		sub := subs[to]
+		toInfo := topics[to]
 
 		if op.Sticky && to == msg.To {
-			if sub == nil {
-				sub = &subscription{
+			if toInfo == nil {
+				toInfo = &topicInfo{
 					sticky: nil,
 					subs:   map[*Subscriber]*subscriberInfo{},
 				}
-				subs[to] = sub
+				topics[to] = toInfo
 			}
 			msgCopy := *msg
 			msgCopy.Old = true
-			sub.sticky = &msgCopy
+			toInfo.sticky = &msgCopy
 		}
 
-		if sub != nil {
+		if toInfo != nil {
 			if !op.Sticky {
-				sub.sticky = nil
+				toInfo.sticky = nil
 			}
 
-			sub.muSubs.RLock()
-			for subscriber, subInfo := range sub.subs {
+			toInfo.muSubs.RLock()
+			for subscriber, subInfo := range toInfo.subs {
 				select {
 				case subscriber.ch <- msg:
 				default:
@@ -146,7 +146,7 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 					delivered++
 				}
 			}
-			sub.muSubs.RUnlock()
+			toInfo.muSubs.RUnlock()
 		}
 	}
 
@@ -176,14 +176,14 @@ func (s *Subscriber) Unsubscribe(topic ...string) {
 	defer muSubs.Unlock()
 
 	for _, to := range topic {
-		sub := subs[to]
-		if sub != nil {
-			sub.muSubs.Lock()
-			delete(sub.subs, s)
-			if sub.canBeDeleted() {
-				delete(subs, to)
+		toInfo := topics[to]
+		if toInfo != nil {
+			toInfo.muSubs.Lock()
+			delete(toInfo.subs, s)
+			if toInfo.canBeDeleted() {
+				delete(topics, to)
 			}
-			sub.muSubs.Unlock()
+			toInfo.muSubs.Unlock()
 		}
 	}
 }
@@ -193,13 +193,13 @@ func (s *Subscriber) UnsubscribeAll() {
 	muSubs.Lock()
 	defer muSubs.Unlock()
 
-	for to, sub := range subs {
-		sub.muSubs.Lock()
-		delete(sub.subs, s)
-		if sub.canBeDeleted() {
-			delete(subs, to)
+	for to, toInfo := range topics {
+		toInfo.muSubs.Lock()
+		delete(toInfo.subs, s)
+		if toInfo.canBeDeleted() {
+			delete(topics, to)
 		}
-		sub.muSubs.Unlock()
+		toInfo.muSubs.Unlock()
 	}
 }
 
@@ -208,10 +208,10 @@ func UnsubscribeAll() {
 	muSubs.Lock()
 	defer muSubs.Unlock()
 
-	subs = map[string]*subscription{}
+	topics = map[string]*topicInfo{}
 }
 
-func (s *subscription) canBeDeleted() bool {
+func (s *topicInfo) canBeDeleted() bool {
 	return len(s.subs) == 0 && s.sticky == nil
 }
 
