@@ -27,6 +27,7 @@ type Subscriber struct {
 
 type subscriberInfo struct {
 	hidden             bool
+	ignoreSticky       bool
 	stickyFromChildren bool
 }
 
@@ -59,11 +60,15 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 			subs[to] = sub
 		}
 		sub.muSubs.Lock()
-		sub.subs[newSub] = parseFlags(fullTo)
+		subInfo := parseFlags(fullTo)
+		sub.subs[newSub] = subInfo
 		sub.muSubs.Unlock()
 
-		if sub.sticky != nil {
-			newSub.ch <- sub.sticky
+		for otherTo, otherSub := range subs {
+			// isChild := strings.HasPrefix(otherTo, to+".")
+			if otherTo == to && otherSub.sticky != nil && !subInfo.ignoreSticky {
+				newSub.ch <- otherSub.sticky
+			}
 		}
 	}
 
@@ -79,6 +84,8 @@ func parseFlags(to string) *subscriberInfo {
 			switch c {
 			case 'h':
 				info.hidden = true
+			case 's':
+				info.ignoreSticky = true
 			}
 		}
 	}
