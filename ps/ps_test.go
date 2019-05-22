@@ -266,3 +266,18 @@ func TestCanCheckOverflowOnSubscriber(t *testing.T) {
 
 	assert.Equal(t, uint32(1), sub.Overflow())
 }
+
+func TestUnsubscribeFromNonSubscribedPath(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(1, "a")
+	sub.Unsubscribe("b")
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "b"})
+	assert.Equal(t, 1, n)
+
+	msg := sub.Get(0)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "b", msg.Data)
+	assert.Equal(t, false, msg.Old)
+}
