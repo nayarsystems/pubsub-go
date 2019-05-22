@@ -99,11 +99,11 @@ func parseFlags(to string) *subscriberInfo {
 func Publish(msg *Msg, opts ...*MsgOpts) int {
 	delivered := 0
 
-	var op *MsgOpts
+	var msgOpts *MsgOpts
 	if len(opts) > 0 {
-		op = opts[0]
+		msgOpts = opts[0]
 	} else {
-		op = &MsgOpts{}
+		msgOpts = &MsgOpts{}
 	}
 
 	muSubs.Lock()
@@ -116,7 +116,7 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 		toParts = toParts[:len(toParts)-1]
 		toInfo := topics[to]
 
-		if op.Sticky && to == msg.To {
+		if msgOpts.Sticky && to == msg.To {
 			if toInfo == nil {
 				toInfo = &topicInfo{
 					sticky: nil,
@@ -130,7 +130,7 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 		}
 
 		if toInfo != nil {
-			if !op.Sticky {
+			if !msgOpts.Sticky && to == msg.To {
 				toInfo.sticky = nil
 			}
 
