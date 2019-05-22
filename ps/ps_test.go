@@ -250,3 +250,19 @@ func TestStickyNotLostAfterUnsusbcribing(t *testing.T) {
 	assert.Equal(t, "b", msg.Data)
 	assert.Equal(t, true, msg.Old)
 }
+
+func TestCanCheckOverflowOnSubscriber(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(1, "a")
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "b"})
+	assert.Equal(t, 1, n)
+
+	assert.Equal(t, uint32(0), sub.Overflow())
+
+	n = ps.Publish(&ps.Msg{To: "a", Data: "b"})
+	assert.Equal(t, 0, n)
+
+	assert.Equal(t, uint32(1), sub.Overflow())
+}

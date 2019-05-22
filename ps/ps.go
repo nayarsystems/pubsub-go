@@ -2,6 +2,7 @@ package ps
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -19,7 +20,8 @@ type MsgOpts struct {
 
 // Subscriber is a subscription to one or more topics
 type Subscriber struct {
-	ch chan *Msg
+	ch       chan *Msg
+	overflow uint32
 }
 
 type subscription struct {
@@ -97,7 +99,12 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 
 		sub.muSubs.RLock()
 		for subscriber := range sub.subs {
-			subscriber.ch <- msg
+			select {
+			case subscriber.ch <- msg:
+			default:
+				atomic.AddUint32(&subscriber.overflow, 1)
+				continue
+			}
 			delivered++
 		}
 		sub.muSubs.RUnlock()
@@ -166,4 +173,9 @@ func UnsubscribeAll() {
 
 func (s *subscription) canBeDeleted() bool {
 	return len(s.subs) == 0 && s.sticky == nil
+}
+
+// Overflow returns number of messages that overflowed when published
+func (s *Subscriber) Overflow() uint32 {
+	return atomic.LoadUint32(&s.overflow)
 }
