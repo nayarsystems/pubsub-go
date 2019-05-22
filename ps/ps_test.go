@@ -281,3 +281,23 @@ func TestUnsubscribeFromNonSubscribedPath(t *testing.T) {
 	assert.Equal(t, "b", msg.Data)
 	assert.Equal(t, false, msg.Old)
 }
+
+func TestSendToParentTopics(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	subA := ps.NewSubscriber(1, "a")
+	subAB := ps.NewSubscriber(1, "a.b")
+
+	n := ps.Publish(&ps.Msg{To: "a.b.c", Data: "whatever"})
+	assert.Equal(t, 2, n)
+
+	msg := subA.Get(0)
+	assert.Equal(t, "a.b.c", msg.To)
+	assert.Equal(t, "whatever", msg.Data)
+	assert.Equal(t, false, msg.Old)
+
+	msg = subAB.Get(0)
+	assert.Equal(t, "a.b.c", msg.To)
+	assert.Equal(t, "whatever", msg.Data)
+	assert.Equal(t, false, msg.Old)
+}

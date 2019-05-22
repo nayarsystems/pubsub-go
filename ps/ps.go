@@ -1,6 +1,7 @@
 package ps
 
 import (
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -77,37 +78,43 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 	muSubs.Lock()
 	defer muSubs.Unlock()
 
-	sub := subs[msg.To]
+	toParts := strings.Split(msg.To, ".")
 
-	if op.Sticky {
-		if sub == nil {
-			sub = &subscription{
-				sticky: nil,
-				subs:   map[*Subscriber]bool{},
+	for len(toParts) > 0 {
+		to := strings.Join(toParts, ".")
+		toParts = toParts[:len(toParts)-1]
+		sub := subs[to]
+
+		if op.Sticky {
+			if sub == nil {
+				sub = &subscription{
+					sticky: nil,
+					subs:   map[*Subscriber]bool{},
+				}
+				subs[to] = sub
 			}
-			subs[msg.To] = sub
-		}
-		msgCopy := *msg
-		msgCopy.Old = true
-		sub.sticky = &msgCopy
-	}
-
-	if sub != nil {
-		if !op.Sticky {
-			sub.sticky = nil
+			msgCopy := *msg
+			msgCopy.Old = true
+			sub.sticky = &msgCopy
 		}
 
-		sub.muSubs.RLock()
-		for subscriber := range sub.subs {
-			select {
-			case subscriber.ch <- msg:
-			default:
-				atomic.AddUint32(&subscriber.overflow, 1)
-				continue
+		if sub != nil {
+			if !op.Sticky {
+				sub.sticky = nil
 			}
-			delivered++
+
+			sub.muSubs.RLock()
+			for subscriber := range sub.subs {
+				select {
+				case subscriber.ch <- msg:
+				default:
+					atomic.AddUint32(&subscriber.overflow, 1)
+					continue
+				}
+				delivered++
+			}
+			sub.muSubs.RUnlock()
 		}
-		sub.muSubs.RUnlock()
 	}
 
 	return delivered
