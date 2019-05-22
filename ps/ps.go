@@ -26,7 +26,8 @@ type Subscriber struct {
 }
 
 type subscriberInfo struct {
-	hidden bool
+	hidden             bool
+	stickyFromChildren bool
 }
 
 type subscription struct {
@@ -106,7 +107,7 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 		toParts = toParts[:len(toParts)-1]
 		sub := subs[to]
 
-		if op.Sticky {
+		if op.Sticky && to == msg.To {
 			if sub == nil {
 				sub = &subscription{
 					sticky: nil,

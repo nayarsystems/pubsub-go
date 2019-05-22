@@ -337,3 +337,15 @@ func TestGetWaitingMessagesNotRead(t *testing.T) {
 
 	assert.Equal(t, 4, sub.Waiting())
 }
+
+func TestDontReceiveStickyFromChildren(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	n := ps.Publish(&ps.Msg{To: "a.b", Data: "whatever"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+
+	sub := ps.NewSubscriber(10, "a")
+
+	msg := sub.Get(0)
+	assert.Nil(t, msg)
+}
