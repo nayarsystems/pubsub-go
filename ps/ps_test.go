@@ -18,6 +18,7 @@ func TestSubscribeSimple(t *testing.T) {
 	msg := sub.Get(0)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "b", msg.Data)
+	assert.Equal(t, false, msg.Old)
 }
 
 func TestGetWithoutTimeout(t *testing.T) {
@@ -92,6 +93,7 @@ func TestUnsubscribe(t *testing.T) {
 	msg := sub.Get(0)
 	assert.Equal(t, "c", msg.To)
 	assert.Equal(t, "c data", msg.Data)
+	assert.Equal(t, false, msg.Old)
 	msg = sub.Get(0)
 	assert.Nil(t, msg)
 	msg = sub.Get(0)
@@ -111,9 +113,11 @@ func TestSubscribeToMultipleTopics(t *testing.T) {
 	msg := sub.Get(0)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
+	assert.Equal(t, false, msg.Old)
 	msg = sub.Get(0)
 	assert.Equal(t, "b", msg.To)
 	assert.Equal(t, "b data", msg.Data)
+	assert.Equal(t, false, msg.Old)
 }
 
 func TestMultipleSubscribersToSameTopic(t *testing.T) {
@@ -128,10 +132,12 @@ func TestMultipleSubscribersToSameTopic(t *testing.T) {
 	msg := sub1.Get(0)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
+	assert.Equal(t, false, msg.Old)
 
 	msg = sub2.Get(0)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
+	assert.Equal(t, false, msg.Old)
 }
 
 func TestUnsubscribeAllOnSubscriber(t *testing.T) {
@@ -165,6 +171,7 @@ func TestMultipleSubscribersToSameTopicAndOneUnsubscribes(t *testing.T) {
 	msg := sub1.Get(0)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
+	assert.Equal(t, false, msg.Old)
 
 	msg = sub2.Get(0)
 	assert.Nil(t, msg)
