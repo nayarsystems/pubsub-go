@@ -65,8 +65,8 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 		sub.muSubs.Unlock()
 
 		for otherTo, otherSub := range subs {
-			// isChild := strings.HasPrefix(otherTo, to+".")
-			if otherTo == to && otherSub.sticky != nil && !subInfo.ignoreSticky {
+			isChild := strings.HasPrefix(otherTo, to+".")
+			if otherSub.sticky != nil && !subInfo.ignoreSticky && (otherTo == to || (isChild && subInfo.stickyFromChildren)) {
 				newSub.ch <- otherSub.sticky
 			}
 		}
@@ -86,6 +86,8 @@ func parseFlags(to string) *subscriberInfo {
 				info.hidden = true
 			case 's':
 				info.ignoreSticky = true
+			case 'S':
+				info.stickyFromChildren = true
 			}
 		}
 	}

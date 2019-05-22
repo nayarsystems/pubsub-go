@@ -364,3 +364,22 @@ func TestFlagForNotReceivingStickyFromTopicOrItsChildren(t *testing.T) {
 	msg = subA.Get(0)
 	assert.Nil(t, msg)
 }
+
+func TestFlagForReceivingStickyFromTopicAndItsChildren(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	n := ps.Publish(&ps.Msg{To: "a.b", Data: "whatever"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+
+	subAB := ps.NewSubscriber(10, "a.b S")
+	msg := subAB.Get(0)
+	assert.Equal(t, "a.b", msg.To)
+	assert.Equal(t, "whatever", msg.Data)
+	assert.Equal(t, true, msg.Old)
+
+	subA := ps.NewSubscriber(10, "a S")
+	msg = subA.Get(0)
+	assert.Equal(t, "a.b", msg.To)
+	assert.Equal(t, "whatever", msg.Data)
+	assert.Equal(t, true, msg.Old)
+}
