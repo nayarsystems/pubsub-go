@@ -426,13 +426,18 @@ func TestStickyOnSiblingIsNotReceived(t *testing.T) {
 	n := ps.Publish(&ps.Msg{To: "a", Data: "a data"}, &ps.MsgOpts{Sticky: true})
 	assert.Equal(t, 0, n)
 
-	subA := ps.NewSubscriber(10, "a")
-	msg := subA.Get(0)
-	assert.Equal(t, "a", msg.To)
-	assert.Equal(t, "a data", msg.Data)
-	assert.Equal(t, true, msg.Old)
+	sub := ps.NewSubscriber(10, "b")
+	msg := sub.Get(0)
+	assert.Nil(t, msg)
+}
 
-	subB := ps.NewSubscriber(10, "b")
-	msg = subB.Get(0)
+func TestStickyOnSiblingChildrenIsNotReceived(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	n := ps.Publish(&ps.Msg{To: "a.b", Data: "a data"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+
+	sub := ps.NewSubscriber(10, "c")
+	msg := sub.Get(0)
 	assert.Nil(t, msg)
 }
