@@ -232,3 +232,21 @@ func TestNormalValueClearsSticky(t *testing.T) {
 	msg := sub.Get(0)
 	assert.Nil(t, msg)
 }
+
+func TestStickyNotLostAfterUnsusbcribing(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(10, "a")
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "b"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 1, n)
+
+	sub.Unsubscribe("a")
+
+	sub = ps.NewSubscriber(10, "a")
+
+	msg := sub.Get(0)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "b", msg.Data)
+	assert.Equal(t, true, msg.Old)
+}

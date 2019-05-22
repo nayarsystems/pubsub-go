@@ -133,8 +133,7 @@ func (s *Subscriber) Unsubscribe(topic ...string) {
 		if sub != nil {
 			sub.muSubs.Lock()
 			delete(sub.subs, s)
-			// Delete subscription when loses its last subscriber
-			if len(sub.subs) == 0 {
+			if sub.canBeDeleted() {
 				delete(subs, to)
 			}
 			sub.muSubs.Unlock()
@@ -150,8 +149,7 @@ func (s *Subscriber) UnsubscribeAll() {
 	for to, sub := range subs {
 		sub.muSubs.Lock()
 		delete(sub.subs, s)
-		// Delete subscription when loses its last subscriber
-		if len(sub.subs) == 0 {
+		if sub.canBeDeleted() {
 			delete(subs, to)
 		}
 		sub.muSubs.Unlock()
@@ -164,4 +162,8 @@ func UnsubscribeAll() {
 	defer muSubs.Unlock()
 
 	subs = map[string]*subscription{}
+}
+
+func (s *subscription) canBeDeleted() bool {
+	return len(s.subs) == 0 && s.sticky == nil
 }
