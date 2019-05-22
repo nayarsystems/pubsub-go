@@ -322,3 +322,18 @@ func TestHiddenFlagDoesntCountAsDelivered(t *testing.T) {
 	assert.Equal(t, "b", msg.Data)
 	assert.Equal(t, false, msg.Old)
 }
+
+func TestGetWaitingMessagesNotRead(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(10, "a")
+
+	for i := 0; i < 5; i++ {
+		n := ps.Publish(&ps.Msg{To: "a", Data: "b"})
+		assert.Equal(t, 1, n)
+	}
+
+	sub.Get(0)
+
+	assert.Equal(t, 4, sub.Waiting())
+}

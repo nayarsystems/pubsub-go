@@ -209,3 +209,8 @@ func (s *subscription) canBeDeleted() bool {
 func (s *Subscriber) Overflow() uint32 {
 	return atomic.LoadUint32(&s.overflow)
 }
+
+// Waiting returns number of messages waiting to be read
+func (s *Subscriber) Waiting() int {
+	return len(s.ch)
+}
