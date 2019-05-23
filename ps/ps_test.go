@@ -663,3 +663,27 @@ func TestCleanSticky(t *testing.T) {
 	msgABC := subABC.Get(0)
 	assert.Nil(t, msgABC)
 }
+
+func TestFlagForDroppingOldestQueuedMessageWhenPublishingOnFullQueue(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(3, "a r")
+
+	ps.Publish(&ps.Msg{To: "a", Data: "a1"})
+	ps.Publish(&ps.Msg{To: "a", Data: "a2"})
+	ps.Publish(&ps.Msg{To: "a", Data: "a3"})
+
+	ps.Publish(&ps.Msg{To: "a", Data: "a4"})
+
+	msg := sub.Get(0)
+	assert.Equal(t, "a2", msg.Data)
+
+	msg = sub.Get(0)
+	assert.Equal(t, "a3", msg.Data)
+
+	msg = sub.Get(0)
+	assert.Equal(t, "a4", msg.Data)
+
+	msg = sub.Get(0)
+	assert.Nil(t, msg)
+}

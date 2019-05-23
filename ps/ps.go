@@ -33,6 +33,7 @@ type subscriberInfo struct {
 	hidden             bool
 	ignoreSticky       bool
 	stickyFromChildren bool
+	rotateWhenFull     bool
 }
 
 type topicInfo struct {
@@ -105,6 +106,8 @@ func parseFlags(to string) *subscriberInfo {
 				info.ignoreSticky = true
 			case 'S':
 				info.stickyFromChildren = true
+			case 'r':
+				info.rotateWhenFull = true
 			}
 		}
 	}
@@ -153,12 +156,25 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 
 			toInfo.muSubs.RLock()
 			for subscriber, subInfo := range toInfo.subs {
-				select {
-				case subscriber.ch <- msg:
-				default:
-					atomic.AddUint32(&subscriber.overflow, 1)
-					continue
+				if subInfo.rotateWhenFull {
+					inserted := false
+					for !inserted {
+						select {
+						case subscriber.ch <- msg:
+							inserted = true
+						default:
+							<-subscriber.ch
+						}
+					}
+				} else {
+					select {
+					case subscriber.ch <- msg:
+					default:
+						atomic.AddUint32(&subscriber.overflow, 1)
+						continue
+					}
 				}
+
 				if !subInfo.hidden {
 					delivered++
 				}
