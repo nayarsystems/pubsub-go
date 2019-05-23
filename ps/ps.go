@@ -240,6 +240,20 @@ func (s *Subscriber) Waiting() int {
 	return len(s.ch)
 }
 
+// Flush removes waiting messages returning how many were queued
+func (s *Subscriber) Flush() int {
+	removed := 0
+	for len(s.ch) > 0 {
+		select {
+		case <-s.ch:
+			removed++
+		default:
+			break
+		}
+	}
+	return removed
+}
+
 // Call publishes message waiting for receiving response (using msg.Answer) with timeout (0:return inmediately, <0:block until reception, >0:block for millis or until reception)
 func Call(msg *Msg, timeout time.Duration, opts ...*MsgOpts) (interface{}, error) {
 	n := atomic.AddInt64(&respCnt, 1)

@@ -617,3 +617,17 @@ func TestWaitOneTimeout(t *testing.T) {
 	assert.True(t, t1.Sub(t0) >= 2*time.Millisecond)
 	assert.True(t, t1.Sub(t0) < 3*time.Millisecond)
 }
+
+func TestFlush(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(10, "a")
+
+	for i := 0; i < 5; i++ {
+		ps.Publish(&ps.Msg{To: "a", Data: "b"})
+	}
+
+	flushed := sub.Flush()
+	assert.Equal(t, 5, flushed)
+	assert.Equal(t, 0, sub.Waiting())
+}
