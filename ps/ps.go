@@ -258,6 +258,14 @@ func Call(msg *Msg, timeout time.Duration, opts ...*MsgOpts) (interface{}, error
 	return msgRes.Data, msgRes.Err
 }
 
+// WaitOne waits for message on topic "to" and returns first one with a timeout (0:return inmediately, <0:block until reception, >0:block for millis or until reception)
+func WaitOne(to string, timeout time.Duration) *Msg {
+	sub := NewSubscriber(1, to)
+	defer sub.UnsubscribeAll()
+
+	return sub.Get(timeout)
+}
+
 // Answer replies to this Msg publishing another Msg to msg.Res
 func (m *Msg) Answer(data interface{}, err error) {
 	if m.Res != "" {

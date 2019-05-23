@@ -558,3 +558,62 @@ func TestMsgNonRecursive(t *testing.T) {
 	msg = subA.Get(0)
 	assert.Nil(t, msg)
 }
+
+func TestWaitOne(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	go func() {
+		time.Sleep(time.Millisecond)
+		n := ps.Publish(&ps.Msg{To: "a", Data: "hello"})
+		assert.Equal(t, 1, n)
+	}()
+
+	msg := ps.WaitOne("a", time.Second)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "hello", msg.Data)
+	assert.Equal(t, false, msg.Old)
+}
+
+func TestWaitOneImmediate(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "hello"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+
+	msg := ps.WaitOne("a", 0)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "hello", msg.Data)
+	assert.Equal(t, true, msg.Old)
+}
+
+func TestWaitOneBlocking(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	go func() {
+		time.Sleep(3 * time.Millisecond)
+		n := ps.Publish(&ps.Msg{To: "a", Data: "hello"})
+		assert.Equal(t, 1, n)
+	}()
+
+	t0 := time.Now()
+	msg := ps.WaitOne("a", -1)
+	t1 := time.Now()
+
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "hello", msg.Data)
+	assert.Equal(t, false, msg.Old)
+	assert.True(t, t1.Sub(t0) >= 3*time.Millisecond)
+	assert.True(t, t1.Sub(t0) < 4*time.Millisecond)
+}
+
+func TestWaitOneTimeout(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	t0 := time.Now()
+	msg := ps.WaitOne("a", time.Millisecond*2)
+	t1 := time.Now()
+
+	assert.Nil(t, msg)
+	assert.True(t, t1.Sub(t0) >= 2*time.Millisecond)
+	assert.True(t, t1.Sub(t0) < 3*time.Millisecond)
+}
