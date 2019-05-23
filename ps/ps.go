@@ -117,8 +117,6 @@ func parseFlags(to string) *subscriberInfo {
 
 // Publish message with options. Returns number of deliveries done
 func Publish(msg *Msg, opts ...*MsgOpts) int {
-	delivered := 0
-
 	var msgOpts *MsgOpts
 	if len(opts) > 0 {
 		msgOpts = opts[0]
@@ -129,58 +127,15 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 	muTopics.Lock()
 	defer muTopics.Unlock()
 
+	delivered := 0
 	toParts := strings.Split(msg.To, ".")
 
 	for len(toParts) > 0 {
 		to := strings.Join(toParts, ".")
 		toParts = toParts[:len(toParts)-1]
-		toInfo := topics[to]
 
-		if msgOpts.Sticky && to == msg.To {
-			if toInfo == nil {
-				toInfo = &topicInfo{
-					sticky: nil,
-					subs:   map[*Subscriber]*subscriberInfo{},
-				}
-				topics[to] = toInfo
-			}
-			msgCopy := *msg
-			msgCopy.Old = true
-			toInfo.sticky = &msgCopy
-		}
-
-		if toInfo != nil {
-			if !msgOpts.Sticky && to == msg.To {
-				toInfo.sticky = nil
-			}
-
-			toInfo.muSubs.RLock()
-			for subscriber, subInfo := range toInfo.subs {
-				if subInfo.rotateWhenFull {
-					inserted := false
-					for !inserted {
-						select {
-						case subscriber.ch <- msg:
-							inserted = true
-						default:
-							<-subscriber.ch
-						}
-					}
-				} else {
-					select {
-					case subscriber.ch <- msg:
-					default:
-						atomic.AddUint32(&subscriber.overflow, 1)
-						continue
-					}
-				}
-
-				if !subInfo.hidden {
-					delivered++
-				}
-			}
-			toInfo.muSubs.RUnlock()
-		}
+		storeSticky(to, msg, msgOpts)
+		delivered += publishMsg(to, msg, msgOpts)
 
 		if msgOpts.NonRecursive {
 			break
@@ -188,6 +143,72 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 	}
 
 	return delivered
+}
+
+func storeSticky(to string, msg *Msg, msgOpts *MsgOpts) {
+	if msgOpts.Sticky && to == msg.To {
+		toInfo := topics[to]
+		if toInfo == nil {
+			toInfo = &topicInfo{
+				sticky: nil,
+				subs:   map[*Subscriber]*subscriberInfo{},
+			}
+			topics[to] = toInfo
+		}
+		msgCopy := *msg
+		msgCopy.Old = true
+		toInfo.sticky = &msgCopy
+	}
+}
+
+func publishMsg(to string, msg *Msg, msgOpts *MsgOpts) int {
+	delivered := 0
+	toInfo := topics[to]
+	if toInfo != nil {
+		if !msgOpts.Sticky && to == msg.To {
+			toInfo.sticky = nil
+		}
+
+		toInfo.muSubs.RLock()
+		for subscriber, subInfo := range toInfo.subs {
+			if subInfo.rotateWhenFull {
+				subscriber.enqueueRotating(msg)
+			} else {
+				queued := subscriber.enqueue(msg)
+				if !queued {
+					continue
+				}
+			}
+
+			if !subInfo.hidden {
+				delivered++
+			}
+		}
+		toInfo.muSubs.RUnlock()
+	}
+	return delivered
+}
+
+func (s *Subscriber) enqueueRotating(msg *Msg) {
+	inserted := false
+	for !inserted {
+		select {
+		case s.ch <- msg:
+			inserted = true
+		default:
+			<-s.ch
+		}
+	}
+}
+
+func (s *Subscriber) enqueue(msg *Msg) bool {
+	select {
+	case s.ch <- msg:
+		return true
+	default:
+		atomic.AddUint32(&s.overflow, 1)
+		return false
+	}
 }
 
 // Get returns msg for a topic with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
