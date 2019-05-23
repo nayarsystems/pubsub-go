@@ -536,3 +536,25 @@ func TestCallBlocking(t *testing.T) {
 	assert.True(t, t1.Sub(t0) >= 3*time.Millisecond)
 	assert.True(t, t1.Sub(t0) < 4*time.Millisecond)
 }
+
+func TestMsgNonRecursive(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	subA := ps.NewSubscriber(10, "a")
+	subAB := ps.NewSubscriber(10, "a.b")
+	subABC := ps.NewSubscriber(10, "a.b.c")
+
+	n := ps.Publish(&ps.Msg{To: "a.b.c", Data: "a data"}, &ps.MsgOpts{NonRecursive: true})
+	assert.Equal(t, 1, n)
+
+	msg := subABC.Get(0)
+	assert.Equal(t, "a.b.c", msg.To)
+	assert.Equal(t, "a data", msg.Data)
+	assert.Equal(t, false, msg.Old)
+
+	msg = subAB.Get(0)
+	assert.Nil(t, msg)
+
+	msg = subA.Get(0)
+	assert.Nil(t, msg)
+}

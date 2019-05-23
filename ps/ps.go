@@ -19,7 +19,8 @@ type Msg struct {
 
 // MsgOpts are message options
 type MsgOpts struct {
-	Sticky bool
+	Sticky       bool
+	NonRecursive bool
 }
 
 // Subscriber is a subscription to one or more topics
@@ -157,6 +158,10 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 				}
 			}
 			toInfo.muSubs.RUnlock()
+		}
+
+		if msgOpts.NonRecursive {
+			break
 		}
 	}
 
