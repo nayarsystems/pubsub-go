@@ -286,3 +286,12 @@ func (m *Msg) Answer(data interface{}, err error) {
 		Publish(&Msg{To: m.Res, Data: data, Err: err})
 	}
 }
+
+// CleanSticky removes sticky from topic and its children
+func CleanSticky(to string) {
+	for t, toInfo := range topics {
+		if t == to || strings.HasPrefix(t, to+".") {
+			toInfo.sticky = nil
+		}
+	}
+}

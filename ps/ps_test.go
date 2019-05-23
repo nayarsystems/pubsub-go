@@ -631,3 +631,35 @@ func TestFlush(t *testing.T) {
 	assert.Equal(t, 5, flushed)
 	assert.Equal(t, 0, sub.Waiting())
 }
+
+func TestCleanSticky(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	ps.Publish(&ps.Msg{To: "a", Data: "a data"}, &ps.MsgOpts{Sticky: true})
+	ps.Publish(&ps.Msg{To: "a.b", Data: "a.b data"}, &ps.MsgOpts{Sticky: true})
+	ps.Publish(&ps.Msg{To: "a.bar", Data: "a.bar data"}, &ps.MsgOpts{Sticky: true})
+	ps.Publish(&ps.Msg{To: "a.b.c", Data: "a.b.c data"}, &ps.MsgOpts{Sticky: true})
+
+	ps.CleanSticky("a.b")
+
+	subA := ps.NewSubscriber(10, "a")
+	subAB := ps.NewSubscriber(10, "a.b")
+	subAbar := ps.NewSubscriber(10, "a.bar")
+	subABC := ps.NewSubscriber(10, "a.b.c")
+
+	msgA := subA.Get(0)
+	assert.Equal(t, "a", msgA.To)
+	assert.Equal(t, "a data", msgA.Data)
+	assert.Equal(t, true, msgA.Old)
+
+	msgAB := subAB.Get(0)
+	assert.Nil(t, msgAB)
+
+	msgABar := subAbar.Get(0)
+	assert.Equal(t, "a.bar", msgABar.To)
+	assert.Equal(t, "a.bar data", msgABar.Data)
+	assert.Equal(t, true, msgABar.Old)
+
+	msgABC := subABC.Get(0)
+	assert.Nil(t, msgABC)
+}
