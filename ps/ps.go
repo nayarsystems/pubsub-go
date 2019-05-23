@@ -52,6 +52,12 @@ var topics = map[string]*topicInfo{}
 var respCnt int64
 
 // NewSubscriber creates subscriber to topics with a queue that can hold up to size messages
+// Topics are separated by "." (e.g.: "a.b.c") and can optionally have an " " and some flags (e.g. "a.b.c hs").
+//
+// Possible flags:
+//  h: this subscriber is hidden so it doesn't count as delivered on Publish.
+//  s: when subscribing don't receive sticky for this topic and its children.
+//  S: receive sticky from this topic and its children.
 func NewSubscriber(size int, topic ...string) *Subscriber {
 	newSub := &Subscriber{
 		ch: make(chan *Msg, size),
