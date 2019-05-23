@@ -47,7 +47,7 @@ type ErrTimeout struct {
 
 func (e *ErrTimeout) Error() string { return "Timeout" }
 
-var muSubs sync.RWMutex
+var muTopics sync.RWMutex
 var topics = map[string]*topicInfo{}
 var respCnt int64
 
@@ -57,8 +57,8 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 		ch: make(chan *Msg, size),
 	}
 
-	muSubs.Lock()
-	defer muSubs.Unlock()
+	muTopics.Lock()
+	defer muTopics.Unlock()
 
 	for _, fullTo := range topic {
 		to := strings.Split(fullTo, " ")[0]
@@ -117,8 +117,8 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 		msgOpts = &MsgOpts{}
 	}
 
-	muSubs.Lock()
-	defer muSubs.Unlock()
+	muTopics.Lock()
+	defer muTopics.Unlock()
 
 	toParts := strings.Split(msg.To, ".")
 
@@ -187,8 +187,8 @@ func (s *Subscriber) Get(timeout time.Duration) *Msg {
 
 // Unsubscribe from topics
 func (s *Subscriber) Unsubscribe(topic ...string) {
-	muSubs.Lock()
-	defer muSubs.Unlock()
+	muTopics.Lock()
+	defer muTopics.Unlock()
 
 	for _, to := range topic {
 		toInfo := topics[to]
@@ -205,8 +205,8 @@ func (s *Subscriber) Unsubscribe(topic ...string) {
 
 // UnsubscribeAll unsubscribes from all topics
 func (s *Subscriber) UnsubscribeAll() {
-	muSubs.Lock()
-	defer muSubs.Unlock()
+	muTopics.Lock()
+	defer muTopics.Unlock()
 
 	for to, toInfo := range topics {
 		toInfo.muSubs.Lock()
@@ -220,8 +220,8 @@ func (s *Subscriber) UnsubscribeAll() {
 
 // UnsubscribeAll removes all subscribers
 func UnsubscribeAll() {
-	muSubs.Lock()
-	defer muSubs.Unlock()
+	muTopics.Lock()
+	defer muTopics.Unlock()
 
 	topics = map[string]*topicInfo{}
 }
