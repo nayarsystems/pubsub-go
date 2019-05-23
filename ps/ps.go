@@ -106,7 +106,7 @@ func parseFlags(to string) *subscriberInfo {
 	return info
 }
 
-// Publish message returning with optional options. Returns number of deliveries done
+// Publish message with options. Returns number of deliveries done
 func Publish(msg *Msg, opts ...*MsgOpts) int {
 	delivered := 0
 
