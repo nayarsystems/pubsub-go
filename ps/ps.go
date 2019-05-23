@@ -1,6 +1,7 @@
 package ps
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -10,8 +11,10 @@ import (
 // Msg is a pubsub message
 type Msg struct {
 	To   string
-	Data string
+	Data interface{}
 	Old  bool
+	Res  string
+	Err  error
 }
 
 // MsgOpts are message options
@@ -37,8 +40,15 @@ type topicInfo struct {
 	subs   map[*Subscriber]*subscriberInfo
 }
 
+// ErrTimeout returned on timeout
+type ErrTimeout struct {
+}
+
+func (e *ErrTimeout) Error() string { return "Timeout" }
+
 var muSubs sync.RWMutex
 var topics = map[string]*topicInfo{}
+var respCnt int64
 
 // NewSubscriber creates subscriber to topics with a queue that can hold up to size messages
 func NewSubscriber(size int, topic ...string) *Subscriber {
@@ -223,4 +233,29 @@ func (s *Subscriber) Overflow() uint32 {
 // Waiting returns number of messages waiting to be read
 func (s *Subscriber) Waiting() int {
 	return len(s.ch)
+}
+
+// Call publishes message waiting for receiving response (using msg.Answer) with timeout (0:return inmediately, <0:block until reception, >0:block for millis or until reception)
+func Call(msg *Msg, timeout time.Duration, opts ...*MsgOpts) (interface{}, error) {
+	n := atomic.AddInt64(&respCnt, 1)
+	res := fmt.Sprintf("$ret.%d", n)
+
+	sub := NewSubscriber(1, res)
+	defer sub.UnsubscribeAll()
+
+	Publish(&Msg{To: msg.To, Data: msg.Data, Res: res}, opts...)
+
+	msgRes := sub.Get(timeout)
+	if msgRes == nil {
+		return nil, &ErrTimeout{}
+	}
+
+	return msgRes.Data, msgRes.Err
+}
+
+// Answer replies to this Msg publishing another Msg to msg.Res
+func (m *Msg) Answer(data interface{}, err error) {
+	if m.Res != "" {
+		Publish(&Msg{To: m.Res, Data: data, Err: err})
+	}
 }

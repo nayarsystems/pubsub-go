@@ -1,6 +1,7 @@
 package ps_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -440,4 +441,98 @@ func TestStickyOnSiblingChildrenIsNotReceived(t *testing.T) {
 	sub := ps.NewSubscriber(10, "c")
 	msg := sub.Get(0)
 	assert.Nil(t, msg)
+}
+
+func TestCall(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	ready := make(chan bool)
+
+	go func() {
+		sub := ps.NewSubscriber(10, "a")
+		ready <- true
+		for {
+			msg := sub.Get(time.Second)
+			if msg == nil {
+				break
+			}
+			msg.Answer("hello "+msg.Data.(string), nil)
+		}
+	}()
+
+	<-ready
+
+	result, err := ps.Call(&ps.Msg{To: "a", Data: "Peter"}, time.Second)
+	assert.NoError(t, err)
+	assert.Equal(t, "hello Peter", result)
+}
+
+func TestCallReturnError(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	ready := make(chan bool)
+
+	go func() {
+		sub := ps.NewSubscriber(10, "a")
+		ready <- true
+		for {
+			msg := sub.Get(time.Second)
+			if msg == nil {
+				break
+			}
+			msg.Answer(nil, fmt.Errorf("error %s", msg.Data))
+		}
+	}()
+
+	<-ready
+
+	result, err := ps.Call(&ps.Msg{To: "a", Data: "Peter"}, time.Second)
+	assert.Nil(t, result)
+	assert.Equal(t, fmt.Errorf("error Peter"), err)
+}
+
+func TestCallTimeoutReturnsErrTimeout(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	result, err := ps.Call(&ps.Msg{To: "a", Data: "Peter"}, time.Nanosecond)
+	assert.Nil(t, result)
+	assert.IsType(t, &ps.ErrTimeout{}, err)
+}
+
+func TestCallTimeout(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	t0 := time.Now()
+	result, err := ps.Call(&ps.Msg{To: "a", Data: "Peter"}, time.Millisecond*4)
+	t1 := time.Now()
+
+	assert.Nil(t, result)
+	assert.IsType(t, &ps.ErrTimeout{}, err)
+	assert.True(t, t1.Sub(t0) >= 4*time.Millisecond)
+	assert.True(t, t1.Sub(t0) < 5*time.Millisecond)
+}
+
+func TestCallBlocking(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	ready := make(chan bool)
+
+	go func() {
+		sub := ps.NewSubscriber(1, "a")
+		ready <- true
+		msg := sub.Get(time.Second)
+		time.Sleep(3 * time.Millisecond)
+		msg.Answer("b", nil)
+	}()
+
+	<-ready
+
+	t0 := time.Now()
+	result, err := ps.Call(&ps.Msg{To: "a", Data: "Peter"}, -1)
+	t1 := time.Now()
+
+	assert.Equal(t, "b", result)
+	assert.NoError(t, err)
+	assert.True(t, t1.Sub(t0) >= 3*time.Millisecond)
+	assert.True(t, t1.Sub(t0) < 4*time.Millisecond)
 }
