@@ -168,7 +168,7 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 	return delivered
 }
 
-// Get returns msg for a topic with a timeout (0:return inmediately, <0:block until reception, >0:block for millis or until reception)
+// Get returns msg for a topic with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
 func (s *Subscriber) Get(timeout time.Duration) *Msg {
 	if timeout < 0 {
 		return <-s.ch
@@ -254,7 +254,7 @@ func (s *Subscriber) Flush() int {
 	return removed
 }
 
-// Call publishes message waiting for receiving response (using msg.Answer) with timeout (0:return inmediately, <0:block until reception, >0:block for millis or until reception)
+// Call publishes message waiting for receiving response (using msg.Answer) with timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
 func Call(msg *Msg, timeout time.Duration, opts ...*MsgOpts) (interface{}, error) {
 	n := atomic.AddInt64(&respCnt, 1)
 	res := fmt.Sprintf("$ret.%d", n)
@@ -272,7 +272,7 @@ func Call(msg *Msg, timeout time.Duration, opts ...*MsgOpts) (interface{}, error
 	return msgRes.Data, msgRes.Err
 }
 
-// WaitOne waits for message on topic "to" and returns first one with a timeout (0:return inmediately, <0:block until reception, >0:block for millis or until reception)
+// WaitOne waits for message on topic "to" and returns first one with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
 func WaitOne(to string, timeout time.Duration) *Msg {
 	sub := NewSubscriber(1, to)
 	defer sub.UnsubscribeAll()
