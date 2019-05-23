@@ -38,7 +38,6 @@ type subscriberInfo struct {
 
 type topicInfo struct {
 	sticky *Msg
-	muSubs sync.RWMutex
 	subs   map[*Subscriber]*subscriberInfo
 }
 
@@ -77,10 +76,8 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 			}
 			topics[to] = toInfo
 		}
-		toInfo.muSubs.Lock()
 		subInfo := parseFlags(fullTo)
 		toInfo.subs[newSub] = subInfo
-		toInfo.muSubs.Unlock()
 
 		for otherTo, otherToInfo := range topics {
 			isChild := strings.HasPrefix(otherTo, to+".")
@@ -169,7 +166,6 @@ func publishMsg(to string, msg *Msg, msgOpts *MsgOpts) int {
 			toInfo.sticky = nil
 		}
 
-		toInfo.muSubs.RLock()
 		for subscriber, subInfo := range toInfo.subs {
 			if subInfo.rotateWhenFull {
 				subscriber.enqueueRotating(msg)
@@ -184,7 +180,6 @@ func publishMsg(to string, msg *Msg, msgOpts *MsgOpts) int {
 				delivered++
 			}
 		}
-		toInfo.muSubs.RUnlock()
 	}
 	return delivered
 }
@@ -236,12 +231,10 @@ func (s *Subscriber) Unsubscribe(topic ...string) {
 	for _, to := range topic {
 		toInfo := topics[to]
 		if toInfo != nil {
-			toInfo.muSubs.Lock()
 			delete(toInfo.subs, s)
 			if toInfo.canBeDeleted() {
 				delete(topics, to)
 			}
-			toInfo.muSubs.Unlock()
 		}
 	}
 }
@@ -252,12 +245,10 @@ func (s *Subscriber) UnsubscribeAll() {
 	defer muTopics.Unlock()
 
 	for to, toInfo := range topics {
-		toInfo.muSubs.Lock()
 		delete(toInfo.subs, s)
 		if toInfo.canBeDeleted() {
 			delete(topics, to)
 		}
-		toInfo.muSubs.Unlock()
 	}
 }
 
