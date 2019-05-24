@@ -58,6 +58,7 @@ var respCnt int64
 //  h: this subscriber is hidden so it doesn't count as delivered on Publish.
 //  s: when subscribing don't receive sticky for this topic and its children.
 //  S: receive sticky from this topic and its children.
+//  r: when publishing on a full queue remove oldest element and insert
 func NewSubscriber(size int, topic ...string) *Subscriber {
 	newSub := &Subscriber{
 		ch: make(chan *Msg, size),
