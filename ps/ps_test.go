@@ -687,3 +687,19 @@ func TestFlagForDroppingOldestQueuedMessageWhenPublishingOnFullQueue(t *testing.
 	msg = sub.Get(0)
 	assert.Nil(t, msg)
 }
+
+func TestGetChan(t *testing.T) {
+	ps.UnsubscribeAll()
+	sub := ps.NewSubscriber(10, "a")
+
+	ch := sub.GetChan()
+	ps.Publish(&ps.Msg{To: "a", Data: "b"})
+
+	select {
+	case msg := <-ch:
+		assert.Equal(t, "a", msg.To)
+		assert.Equal(t, "b", msg.Data)
+	case <-time.After(time.Second):
+		t.Error("Shouldn't timeout here")
+	}
+}

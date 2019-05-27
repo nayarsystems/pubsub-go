@@ -224,6 +224,11 @@ func (s *Subscriber) Get(timeout time.Duration) *Msg {
 	}
 }
 
+// GetChan returns channel with messages for this subscriber
+func (s *Subscriber) GetChan() <-chan *Msg {
+	return s.ch
+}
+
 // Unsubscribe from topics
 func (s *Subscriber) Unsubscribe(topic ...string) {
 	muTopics.Lock()
