@@ -1,6 +1,7 @@
 package ps_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -445,6 +446,7 @@ func TestStickyOnSiblingChildrenIsNotReceived(t *testing.T) {
 
 func TestCall(t *testing.T) {
 	ps.UnsubscribeAll()
+	ctx := context.Background()
 
 	ready := make(chan bool)
 
@@ -462,13 +464,14 @@ func TestCall(t *testing.T) {
 
 	<-ready
 
-	result, err := ps.Call(&ps.Msg{To: "a", Data: "Peter"}, time.Second)
+	result, err := ps.Call(ctx, &ps.Msg{To: "a", Data: "Peter"}, time.Second)
 	assert.NoError(t, err)
 	assert.Equal(t, "hello Peter", result)
 }
 
 func TestCallReturnError(t *testing.T) {
 	ps.UnsubscribeAll()
+	ctx := context.Background()
 
 	ready := make(chan bool)
 
@@ -486,34 +489,37 @@ func TestCallReturnError(t *testing.T) {
 
 	<-ready
 
-	result, err := ps.Call(&ps.Msg{To: "a", Data: "Peter"}, time.Second)
+	result, err := ps.Call(ctx, &ps.Msg{To: "a", Data: "Peter"}, time.Second)
 	assert.Nil(t, result)
 	assert.Equal(t, fmt.Errorf("error Peter"), err)
 }
 
-func TestCallTimeoutReturnsErrTimeout(t *testing.T) {
+func TestCallTimeoutReturnsDeadlineExceeded(t *testing.T) {
 	ps.UnsubscribeAll()
+	ctx := context.Background()
 
-	result, err := ps.Call(&ps.Msg{To: "a", Data: "Peter"}, time.Nanosecond)
+	result, err := ps.Call(ctx, &ps.Msg{To: "a", Data: "Peter"}, time.Nanosecond)
 	assert.Nil(t, result)
-	assert.IsType(t, &ps.ErrTimeout{}, err)
+	assert.Equal(t, context.DeadlineExceeded, err)
 }
 
 func TestCallTimeout(t *testing.T) {
 	ps.UnsubscribeAll()
+	ctx := context.Background()
 
 	t0 := time.Now()
-	result, err := ps.Call(&ps.Msg{To: "a", Data: "Peter"}, time.Millisecond*4)
+	result, err := ps.Call(ctx, &ps.Msg{To: "a", Data: "Peter"}, time.Millisecond*4)
 	t1 := time.Now()
 
 	assert.Nil(t, result)
-	assert.IsType(t, &ps.ErrTimeout{}, err)
+	assert.Equal(t, context.DeadlineExceeded, err)
 	assert.True(t, t1.Sub(t0) >= 4*time.Millisecond)
 	assert.True(t, t1.Sub(t0) < 5*time.Millisecond)
 }
 
 func TestCallBlocking(t *testing.T) {
 	ps.UnsubscribeAll()
+	ctx := context.Background()
 
 	ready := make(chan bool)
 
@@ -528,11 +534,31 @@ func TestCallBlocking(t *testing.T) {
 	<-ready
 
 	t0 := time.Now()
-	result, err := ps.Call(&ps.Msg{To: "a", Data: "Peter"}, -1)
+	result, err := ps.Call(ctx, &ps.Msg{To: "a", Data: "Peter"}, -1)
 	t1 := time.Now()
 
 	assert.Equal(t, "b", result)
 	assert.NoError(t, err)
+	assert.True(t, t1.Sub(t0) >= 3*time.Millisecond)
+	assert.True(t, t1.Sub(t0) < 4*time.Millisecond)
+}
+
+func TestCallWithCancellableContext(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		time.Sleep(3 * time.Millisecond)
+		cancel()
+	}()
+
+	t0 := time.Now()
+	result, err := ps.Call(ctx, &ps.Msg{To: "a", Data: "Peter"}, -1)
+	t1 := time.Now()
+
+	assert.Nil(t, result)
+	assert.Equal(t, context.Canceled, err)
 	assert.True(t, t1.Sub(t0) >= 3*time.Millisecond)
 	assert.True(t, t1.Sub(t0) < 4*time.Millisecond)
 }

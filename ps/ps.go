@@ -1,6 +1,7 @@
 package ps
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -294,8 +295,8 @@ func (s *Subscriber) Flush() int {
 	return removed
 }
 
-// Call publishes message waiting for receiving response (using msg.Answer) with timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
-func Call(msg *Msg, timeout time.Duration, opts ...*MsgOpts) (interface{}, error) {
+// Call publishes message waiting for receiving response (using msg.Answer) with timeout (<0:block until reception, >0:block for timeout or until reception)
+func Call(ctx context.Context, msg *Msg, timeout time.Duration, opts ...*MsgOpts) (interface{}, error) {
 	n := atomic.AddInt64(&respCnt, 1)
 	res := fmt.Sprintf("$ret.%d", n)
 
@@ -304,12 +305,18 @@ func Call(msg *Msg, timeout time.Duration, opts ...*MsgOpts) (interface{}, error
 
 	Publish(&Msg{To: msg.To, Data: msg.Data, Res: res}, opts...)
 
-	msgRes := sub.Get(timeout)
-	if msgRes == nil {
-		return nil, &ErrTimeout{}
+	if timeout >= 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
 	}
 
-	return msgRes.Data, msgRes.Err
+	select {
+	case msg := <-sub.GetChan():
+		return msg.Data, msg.Err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // WaitOne waits for message on topic "to" and returns first one with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
