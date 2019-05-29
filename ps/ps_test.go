@@ -498,6 +498,8 @@ func TestCallTimeoutReturnsDeadlineExceeded(t *testing.T) {
 	ps.UnsubscribeAll()
 	ctx := context.Background()
 
+	ps.NewSubscriber(10, "a")
+
 	result, err := ps.Call(ctx, &ps.Msg{To: "a", Data: "Peter"}, time.Nanosecond)
 	assert.Nil(t, result)
 	assert.Equal(t, context.DeadlineExceeded, err)
@@ -506,6 +508,8 @@ func TestCallTimeoutReturnsDeadlineExceeded(t *testing.T) {
 func TestCallTimeout(t *testing.T) {
 	ps.UnsubscribeAll()
 	ctx := context.Background()
+
+	ps.NewSubscriber(1, "a")
 
 	t0 := time.Now()
 	result, err := ps.Call(ctx, &ps.Msg{To: "a", Data: "Peter"}, time.Millisecond*4)
@@ -547,6 +551,8 @@ func TestCallWithCancellableContext(t *testing.T) {
 	ps.UnsubscribeAll()
 
 	ctx, cancel := context.WithCancel(context.Background())
+
+	ps.NewSubscriber(1, "a")
 
 	go func() {
 		time.Sleep(3 * time.Millisecond)
@@ -728,4 +734,12 @@ func TestGetChan(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Error("Shouldn't timeout here")
 	}
+}
+
+func TestCallWithoutSubscribersReturnsErrNotFound(t *testing.T) {
+	ps.UnsubscribeAll()
+	ctx := context.Background()
+
+	_, err := ps.Call(ctx, &ps.Msg{To: "something"}, -1)
+	assert.IsType(t, &ps.ErrNotFound{}, err)
 }

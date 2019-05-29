@@ -43,11 +43,11 @@ type topicInfo struct {
 	subs   map[*Subscriber]*subscriberInfo
 }
 
-// ErrTimeout returned on timeout
-type ErrTimeout struct {
+// ErrNotFound returned when doing a call on a topic with no subscribers
+type ErrNotFound struct {
 }
 
-func (e *ErrTimeout) Error() string { return "Timeout" }
+func (e *ErrNotFound) Error() string { return "No subscriber for that topic" }
 
 var muTopics sync.RWMutex
 var topics = map[string]*topicInfo{}
@@ -306,7 +306,10 @@ func Call(ctx context.Context, msg *Msg, timeout time.Duration, opts ...*MsgOpts
 	sub := NewSubscriber(1, res)
 	defer sub.UnsubscribeAll()
 
-	Publish(&Msg{To: msg.To, Data: msg.Data, Res: res}, opts...)
+	delivered := Publish(&Msg{To: msg.To, Data: msg.Data, Res: res}, opts...)
+	if delivered == 0 {
+		return nil, &ErrNotFound{}
+	}
 
 	if timeout >= 0 {
 		var cancel context.CancelFunc
