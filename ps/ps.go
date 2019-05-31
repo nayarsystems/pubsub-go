@@ -3,7 +3,8 @@ package ps
 import (
 	"context"
 	"crypto/rand"
-	"math/big"
+	"encoding/hex"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -326,21 +327,18 @@ func Call(ctx context.Context, msg *Msg, timeout time.Duration, opts ...*MsgOpts
 }
 
 func newResponsePath() (string, error) {
-	n, err := rand.Int(rand.Reader, newMaxInt(8))
+	numBytes := 8
+	data := make([]byte, numBytes)
+	n, err := rand.Read(data)
 	if err != nil {
 		return "", err
 	}
-	return "$ret." + n.Text(16), nil
-}
 
-func newMaxInt(numBytes int) *big.Int {
-	n := big.NewInt(0)
-	bytes := []byte{}
-	for i := 0; i < numBytes; i++ {
-		bytes = append(bytes, 0xFF)
+	if n != numBytes {
+		return "", fmt.Errorf("Expected %d bytes got %d", numBytes, n)
 	}
-	n.SetBytes(bytes)
-	return n
+
+	return "$ret." + hex.EncodeToString(data), nil
 }
 
 // WaitOne waits for message on topic "to" and returns first one with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
