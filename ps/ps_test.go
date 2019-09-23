@@ -743,3 +743,49 @@ func TestCallWithoutSubscribersReturnsErrNotFound(t *testing.T) {
 	_, err := ps.Call(ctx, &ps.Msg{To: "something"}, -1)
 	assert.IsType(t, &ps.ErrNotFound{}, err)
 }
+
+func TestAddSubscriptionToSubscriberWithoutSubscriptions(t *testing.T) {
+	ps.UnsubscribeAll()
+	sub := ps.NewSubscriber(10)
+
+	sub.Subscribe("a", "b")
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: 1})
+	assert.Equal(t, 1, n)
+
+	n = ps.Publish(&ps.Msg{To: "b", Data: 2})
+	assert.Equal(t, 1, n)
+
+	msg := sub.Get(0)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, 1, msg.Data)
+	assert.Equal(t, false, msg.Old)
+
+	msg = sub.Get(0)
+	assert.Equal(t, "b", msg.To)
+	assert.Equal(t, 2, msg.Data)
+	assert.Equal(t, false, msg.Old)
+}
+
+func TestAddSubscriptionToSubscriberWithSubscriptions(t *testing.T) {
+	ps.UnsubscribeAll()
+	sub := ps.NewSubscriber(10, "a")
+
+	sub.Subscribe("b")
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: 1})
+	assert.Equal(t, 1, n)
+
+	n = ps.Publish(&ps.Msg{To: "b", Data: 2})
+	assert.Equal(t, 1, n)
+
+	msg := sub.Get(0)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, 1, msg.Data)
+	assert.Equal(t, false, msg.Old)
+
+	msg = sub.Get(0)
+	assert.Equal(t, "b", msg.To)
+	assert.Equal(t, 2, msg.Data)
+	assert.Equal(t, false, msg.Old)
+}

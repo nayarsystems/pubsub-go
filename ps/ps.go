@@ -67,6 +67,12 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 		ch: make(chan *Msg, size),
 	}
 
+	registerTopics(newSub, topic...)
+
+	return newSub
+}
+
+func registerTopics(sub *Subscriber, topic ...string) {
 	muTopics.Lock()
 	defer muTopics.Unlock()
 
@@ -81,17 +87,15 @@ func NewSubscriber(size int, topic ...string) *Subscriber {
 			topics[to] = toInfo
 		}
 		subInfo := parseFlags(fullTo)
-		toInfo.subs[newSub] = subInfo
+		toInfo.subs[sub] = subInfo
 
 		for otherTo, otherToInfo := range topics {
 			isChild := strings.HasPrefix(otherTo, to+".")
 			if otherToInfo.sticky != nil && !subInfo.ignoreSticky && (otherTo == to || (isChild && subInfo.stickyFromChildren)) {
-				newSub.ch <- otherToInfo.sticky
+				sub.ch <- otherToInfo.sticky
 			}
 		}
 	}
-
-	return newSub
 }
 
 func parseFlags(to string) *subscriberInfo {
@@ -230,6 +234,11 @@ func (s *Subscriber) Get(timeout time.Duration) *Msg {
 // GetChan returns channel with messages for this subscriber
 func (s *Subscriber) GetChan() <-chan *Msg {
 	return s.ch
+}
+
+// Subscribe subscribes to topics (see NewSubscriber)
+func (s *Subscriber) Subscribe(topic ...string) {
+	registerTopics(s, topic...)
 }
 
 // Unsubscribe from topics
