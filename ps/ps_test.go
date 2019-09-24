@@ -789,3 +789,22 @@ func TestAddSubscriptionToSubscriberWithSubscriptions(t *testing.T) {
 	assert.Equal(t, 2, msg.Data)
 	assert.Equal(t, false, msg.Old)
 }
+
+func TestGetNumSubscribers(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	ps.NewSubscriber(10, "a")
+	assert.Equal(t, 1, ps.NumSubscribers("a"))
+
+	ps.NewSubscriber(10, "b")
+	assert.Equal(t, 1, ps.NumSubscribers("a"))
+
+	sub := ps.NewSubscriber(10, "a")
+	assert.Equal(t, 2, ps.NumSubscribers("a"))
+
+	sub.UnsubscribeAll()
+	assert.Equal(t, 1, ps.NumSubscribers("a"))
+
+	ps.UnsubscribeAll()
+	assert.Equal(t, 0, ps.NumSubscribers("a"))
+}

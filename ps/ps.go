@@ -373,3 +373,16 @@ func CleanSticky(to string) {
 		}
 	}
 }
+
+// NumSubscribers returns number of subscribers to topic
+func NumSubscribers(to string) int {
+	muTopics.Lock()
+	defer muTopics.Unlock()
+
+	toInfo := topics[to]
+	if toInfo == nil {
+		return 0
+	}
+
+	return len(toInfo.subs)
+}
