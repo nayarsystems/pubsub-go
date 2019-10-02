@@ -790,6 +790,25 @@ func TestAddSubscriptionToSubscriberWithSubscriptions(t *testing.T) {
 	assert.Equal(t, false, msg.Old)
 }
 
+func TestRepeatedSubscriptionToSubscriberOnlyReceivesMsgOnce(t *testing.T) {
+	ps.UnsubscribeAll()
+	sub := ps.NewSubscriber(10)
+
+	sub.Subscribe("a")
+	sub.Subscribe("a")
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: 1})
+	assert.Equal(t, 1, n)
+
+	msg := sub.Get(0)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, 1, msg.Data)
+	assert.Equal(t, false, msg.Old)
+
+	msg = sub.Get(0)
+	assert.Nil(t, msg)
+}
+
 func TestGetNumSubscribers(t *testing.T) {
 	ps.UnsubscribeAll()
 
