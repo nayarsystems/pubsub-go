@@ -92,7 +92,7 @@ func registerTopics(sub *Subscriber, topic ...string) {
 		for otherTo, otherToInfo := range topics {
 			isChild := strings.HasPrefix(otherTo, to+".")
 			if otherToInfo.sticky != nil && !subInfo.ignoreSticky && (otherTo == to || (isChild && subInfo.stickyFromChildren)) {
-				sub.ch <- otherToInfo.sticky
+				sub.enqueue(otherToInfo.sticky)
 			}
 		}
 	}
