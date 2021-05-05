@@ -92,10 +92,12 @@ func (s *Subscriber) registerTopics(topic ...string) {
 		subInfo := parseFlags(fullTo)
 		toInfo.subs[s] = subInfo
 
-		for otherTo, otherToInfo := range topics {
-			isChild := strings.HasPrefix(otherTo, to+".")
-			if otherToInfo.sticky != nil && !subInfo.ignoreSticky && (otherTo == to || (isChild && subInfo.stickyFromChildren)) {
-				s.enqueue(otherToInfo.sticky)
+		if !subInfo.ignoreSticky {
+			for otherTo, otherToInfo := range topics {
+				isChild := strings.HasPrefix(otherTo, to+".")
+				if otherToInfo.sticky != nil && (otherTo == to || (isChild && subInfo.stickyFromChildren)) {
+					s.enqueue(otherToInfo.sticky)
+				}
 			}
 		}
 	}
@@ -327,7 +329,7 @@ func Call(ctx context.Context, msg *Msg, timeout time.Duration, opts ...*MsgOpts
 		return nil, err
 	}
 
-	sub := NewSubscriber(1, res)
+	sub := NewSubscriber(1, res+" s") // Optimization for not listening to children of response topic
 	defer sub.UnsubscribeAll()
 
 	delivered := Publish(&Msg{To: msg.To, Data: msg.Data, Res: res}, opts...)
