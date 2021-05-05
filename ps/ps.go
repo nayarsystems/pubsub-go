@@ -343,7 +343,7 @@ func newResponsePath() (string, error) {
 	}
 
 	if n != numBytes {
-		return "", fmt.Errorf("Expected %d bytes got %d", numBytes, n)
+		return "", fmt.Errorf("expected %d bytes got %d", numBytes, n)
 	}
 
 	return "$ret." + hex.EncodeToString(data), nil
