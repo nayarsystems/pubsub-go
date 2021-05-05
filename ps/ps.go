@@ -28,6 +28,7 @@ type MsgOpts struct {
 
 // Subscriber is a subscription to one or more topics
 type Subscriber struct {
+	myTopics map[string]bool
 	ch       chan *Msg
 	overflow uint32
 }
@@ -63,20 +64,23 @@ var topics = map[string]*topicInfo{}
 //  r: when publishing on a full queue remove oldest element and insert
 func NewSubscriber(size int, topic ...string) *Subscriber {
 	newSub := &Subscriber{
-		ch: make(chan *Msg, size),
+		myTopics: map[string]bool{},
+		ch:       make(chan *Msg, size),
 	}
 
-	registerTopics(newSub, topic...)
+	newSub.registerTopics(topic...)
 
 	return newSub
 }
 
-func registerTopics(sub *Subscriber, topic ...string) {
+func (s *Subscriber) registerTopics(topic ...string) {
 	muTopics.Lock()
 	defer muTopics.Unlock()
 
 	for _, fullTo := range topic {
 		to := strings.Split(fullTo, " ")[0]
+		s.addTopic(to)
+
 		toInfo := topics[to]
 		if toInfo == nil {
 			toInfo = &topicInfo{
@@ -86,12 +90,12 @@ func registerTopics(sub *Subscriber, topic ...string) {
 			topics[to] = toInfo
 		}
 		subInfo := parseFlags(fullTo)
-		toInfo.subs[sub] = subInfo
+		toInfo.subs[s] = subInfo
 
 		for otherTo, otherToInfo := range topics {
 			isChild := strings.HasPrefix(otherTo, to+".")
 			if otherToInfo.sticky != nil && !subInfo.ignoreSticky && (otherTo == to || (isChild && subInfo.stickyFromChildren)) {
-				sub.enqueue(otherToInfo.sticky)
+				s.enqueue(otherToInfo.sticky)
 			}
 		}
 	}
@@ -191,6 +195,23 @@ func publishMsg(to string, msg *Msg, msgOpts *MsgOpts) int {
 	return delivered
 }
 
+func (s *Subscriber) addTopic(to string) {
+	s.myTopics[to] = true
+}
+
+func (s *Subscriber) removeTopic(to string) {
+	delete(s.myTopics, to)
+}
+
+func (s *Subscriber) getTopics() []string {
+	toSubs := []string{}
+	for to := range s.myTopics {
+		toSubs = append(toSubs, to)
+	}
+
+	return toSubs
+}
+
 func (s *Subscriber) enqueueRotating(msg *Msg) {
 	inserted := false
 	for !inserted {
@@ -237,7 +258,7 @@ func (s *Subscriber) GetChan() <-chan *Msg {
 
 // Subscribe subscribes to topics (see NewSubscriber)
 func (s *Subscriber) Subscribe(topic ...string) {
-	registerTopics(s, topic...)
+	s.registerTopics(topic...)
 }
 
 // Unsubscribe from topics
@@ -246,6 +267,8 @@ func (s *Subscriber) Unsubscribe(topic ...string) {
 	defer muTopics.Unlock()
 
 	for _, to := range topic {
+		s.removeTopic(to)
+
 		toInfo := topics[to]
 		if toInfo != nil {
 			delete(toInfo.subs, s)
@@ -258,15 +281,7 @@ func (s *Subscriber) Unsubscribe(topic ...string) {
 
 // UnsubscribeAll unsubscribes from all topics
 func (s *Subscriber) UnsubscribeAll() {
-	muTopics.Lock()
-	defer muTopics.Unlock()
-
-	for to, toInfo := range topics {
-		delete(toInfo.subs, s)
-		if toInfo.canBeDeleted() {
-			delete(topics, to)
-		}
-	}
+	s.Unsubscribe(s.getTopics()...)
 }
 
 // UnsubscribeAll removes all subscribers
