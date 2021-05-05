@@ -299,7 +299,7 @@ func (s *Subscriber) Flush() int {
 		case <-s.ch:
 			removed++
 		default:
-			break
+			return removed
 		}
 	}
 	return removed
