@@ -52,7 +52,6 @@ func (e *ErrNotFound) Error() string { return "No subscriber for that topic" }
 
 var muTopics sync.RWMutex
 var topics = map[string]*topicInfo{}
-var respCnt int64
 
 // NewSubscriber creates subscriber to topics with a queue that can hold up to size messages
 // Topics are separated by "." (e.g.: "a.b.c") and can optionally have an " " and some flags (e.g. "a.b.c hs").
