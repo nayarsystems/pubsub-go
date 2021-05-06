@@ -212,6 +212,51 @@ func TestSticky(t *testing.T) {
 	assert.Equal(t, true, msg.Old)
 }
 
+func TestDontGetStickyFromChildrenTopics(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "b"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+
+	n = ps.Publish(&ps.Msg{To: "a.b", Data: "b"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+
+	sub := ps.NewSubscriber(10, "a")
+
+	msg := sub.Get(time.Second)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "b", msg.Data)
+	assert.Equal(t, true, msg.Old)
+
+	msg = sub.Get(time.Millisecond)
+	assert.Nil(t, msg)
+}
+
+func TestWhenGettingStickFromChildrenDontReceiveRepeatedStickyOnTopic(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	n := ps.Publish(&ps.Msg{To: "a", Data: "c"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+
+	n = ps.Publish(&ps.Msg{To: "a.b", Data: "c"}, &ps.MsgOpts{Sticky: true})
+	assert.Equal(t, 0, n)
+
+	sub := ps.NewSubscriber(10, "a S")
+
+	msg := sub.Get(time.Second)
+	assert.Equal(t, "a", msg.To)
+	assert.Equal(t, "c", msg.Data)
+	assert.Equal(t, true, msg.Old)
+
+	msg = sub.Get(time.Second)
+	assert.Equal(t, "a.b", msg.To)
+	assert.Equal(t, "c", msg.Data)
+	assert.Equal(t, true, msg.Old)
+
+	msg = sub.Get(time.Millisecond)
+	assert.Nil(t, msg)
+}
+
 func TestStickyGetLastPublishedValue(t *testing.T) {
 	ps.UnsubscribeAll()
 
