@@ -333,7 +333,7 @@ func Call(ctx context.Context, msg *Msg, timeout time.Duration, opts ...*MsgOpts
 		return nil, err
 	}
 
-	sub := NewSubscriber(1, res+" s") // Optimization for not listening to children of response topic
+	sub := NewSubscriber(1, res)
 	defer sub.UnsubscribeAll()
 
 	delivered := Publish(&Msg{To: msg.To, Data: msg.Data, Res: res}, opts...)
