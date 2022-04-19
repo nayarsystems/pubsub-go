@@ -141,6 +141,10 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 	muTopics.Lock()
 	defer muTopics.Unlock()
 
+	if msgOpts.Sticky {
+		storeSticky(msg)
+	}
+
 	delivered := 0
 	toParts := strings.Split(msg.To, ".")
 
@@ -148,7 +152,6 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 		to := strings.Join(toParts, ".")
 		toParts = toParts[:len(toParts)-1]
 
-		storeSticky(to, msg, msgOpts)
 		delivered += publishMsg(to, msg, msgOpts)
 
 		if msgOpts.NonRecursive {
@@ -159,20 +162,18 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 	return delivered
 }
 
-func storeSticky(to string, msg *Msg, msgOpts *MsgOpts) {
-	if msgOpts.Sticky && to == msg.To {
-		toInfo := topics[to]
-		if toInfo == nil {
-			toInfo = &topicInfo{
-				sticky: nil,
-				subs:   map[*Subscriber]*subscriberInfo{},
-			}
-			topics[to] = toInfo
+func storeSticky(msg *Msg) {
+	toInfo := topics[msg.To]
+	if toInfo == nil {
+		toInfo = &topicInfo{
+			sticky: nil,
+			subs:   map[*Subscriber]*subscriberInfo{},
 		}
-		msgCopy := *msg
-		msgCopy.Old = true
-		toInfo.sticky = &msgCopy
+		topics[msg.To] = toInfo
 	}
+	msgCopy := *msg
+	msgCopy.Old = true
+	toInfo.sticky = &msgCopy
 }
 
 func publishMsg(to string, msg *Msg, msgOpts *MsgOpts) int {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/nayarsystems/pubsub-go/ps"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSubscribeSimple(t *testing.T) {
@@ -18,6 +19,7 @@ func TestSubscribeSimple(t *testing.T) {
 	assert.Equal(t, 1, n)
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "b", msg.Data)
 	assert.Equal(t, false, msg.Old)
@@ -61,6 +63,7 @@ func TestGetBlocking(t *testing.T) {
 	msg := sub.Get(-1)
 	t1 := time.Now()
 
+	require.NotNil(t, msg)
 	assert.Equal(t, msg.To, "a")
 	assert.Equal(t, msg.Data, "b")
 	assert.True(t, t1.Sub(t0) >= 5*time.Millisecond)
@@ -93,6 +96,7 @@ func TestUnsubscribe(t *testing.T) {
 	assert.Equal(t, 1, n)
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "c", msg.To)
 	assert.Equal(t, "c data", msg.Data)
 	assert.Equal(t, false, msg.Old)
@@ -113,10 +117,12 @@ func TestSubscribeToMultipleTopics(t *testing.T) {
 	assert.Equal(t, 1, n)
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
 	assert.Equal(t, false, msg.Old)
 	msg = sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "b", msg.To)
 	assert.Equal(t, "b data", msg.Data)
 	assert.Equal(t, false, msg.Old)
@@ -132,11 +138,13 @@ func TestMultipleSubscribersToSameTopic(t *testing.T) {
 	assert.Equal(t, 2, n)
 
 	msg := sub1.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
 	assert.Equal(t, false, msg.Old)
 
 	msg = sub2.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
 	assert.Equal(t, false, msg.Old)
@@ -171,6 +179,7 @@ func TestMultipleSubscribersToSameTopicAndOneUnsubscribes(t *testing.T) {
 	assert.Equal(t, 1, n)
 
 	msg := sub1.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
 	assert.Equal(t, false, msg.Old)
@@ -191,6 +200,7 @@ func TestMultipleSubscribersToSameTopicAndOneUnsubscribesWithUnsubscribeAll(t *t
 	assert.Equal(t, 1, n)
 
 	msg := sub1.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
 
@@ -207,6 +217,7 @@ func TestSticky(t *testing.T) {
 	sub := ps.NewSubscriber(10, "a")
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "b", msg.Data)
 	assert.Equal(t, true, msg.Old)
@@ -224,6 +235,7 @@ func TestDontGetStickyFromChildrenTopics(t *testing.T) {
 	sub := ps.NewSubscriber(10, "a")
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "b", msg.Data)
 	assert.Equal(t, true, msg.Old)
@@ -244,6 +256,7 @@ func TestWhenGettingStickFromChildrenDontReceiveRepeatedStickyOnTopic(t *testing
 	sub := ps.NewSubscriber(10, "a S")
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "c", msg.Data)
 	assert.Equal(t, true, msg.Old)
@@ -268,6 +281,7 @@ func TestStickyGetLastPublishedValue(t *testing.T) {
 	sub := ps.NewSubscriber(10, "a")
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a2", msg.Data)
 	assert.Equal(t, true, msg.Old)
@@ -300,6 +314,7 @@ func TestStickyNotLostAfterUnsusbcribing(t *testing.T) {
 	sub = ps.NewSubscriber(10, "a")
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "b", msg.Data)
 	assert.Equal(t, true, msg.Old)
@@ -346,11 +361,13 @@ func TestSendToParentTopics(t *testing.T) {
 	assert.Equal(t, 2, n)
 
 	msg := subA.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a.b.c", msg.To)
 	assert.Equal(t, "whatever", msg.Data)
 	assert.Equal(t, false, msg.Old)
 
 	msg = subAB.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a.b.c", msg.To)
 	assert.Equal(t, "whatever", msg.Data)
 	assert.Equal(t, false, msg.Old)
@@ -365,6 +382,7 @@ func TestHiddenFlagDoesntCountAsDelivered(t *testing.T) {
 	assert.Equal(t, 0, n)
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "b", msg.Data)
 	assert.Equal(t, false, msg.Old)
@@ -420,12 +438,14 @@ func TestFlagForReceivingStickyFromTopicAndItsChildren(t *testing.T) {
 
 	subAB := ps.NewSubscriber(10, "a.b S")
 	msg := subAB.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a.b", msg.To)
 	assert.Equal(t, "whatever", msg.Data)
 	assert.Equal(t, true, msg.Old)
 
 	subA := ps.NewSubscriber(10, "a S")
 	msg = subA.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a.b", msg.To)
 	assert.Equal(t, "whatever", msg.Data)
 	assert.Equal(t, true, msg.Old)
@@ -442,6 +462,7 @@ func TestNormalMessageDoesntClearStickyOnParents(t *testing.T) {
 
 	sub := ps.NewSubscriber(10, "a")
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
 	assert.Equal(t, true, msg.Old)
@@ -458,6 +479,7 @@ func TestStickyOnParentIsNotReceivedByChildren(t *testing.T) {
 
 	subA := ps.NewSubscriber(10, "a")
 	msg := subA.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "a data", msg.Data)
 	assert.Equal(t, true, msg.Old)
@@ -576,6 +598,7 @@ func TestCallBlocking(t *testing.T) {
 		sub := ps.NewSubscriber(1, "a")
 		ready <- true
 		msg := sub.Get(time.Second)
+		require.NotNil(t, msg)
 		time.Sleep(3 * time.Millisecond)
 		msg.Answer("b", nil)
 	}()
@@ -625,6 +648,7 @@ func TestMsgNonRecursive(t *testing.T) {
 	assert.Equal(t, 1, n)
 
 	msg := subABC.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a.b.c", msg.To)
 	assert.Equal(t, "a data", msg.Data)
 	assert.Equal(t, false, msg.Old)
@@ -658,6 +682,7 @@ func TestWaitOneImmediate(t *testing.T) {
 	assert.Equal(t, 0, n)
 
 	msg := ps.WaitOne("a", time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, "hello", msg.Data)
 	assert.Equal(t, true, msg.Old)
@@ -725,6 +750,7 @@ func TestCleanSticky(t *testing.T) {
 	subABC := ps.NewSubscriber(10, "a.b.c")
 
 	msgA := subA.Get(time.Second)
+	require.NotNil(t, msgA)
 	assert.Equal(t, "a", msgA.To)
 	assert.Equal(t, "a data", msgA.Data)
 	assert.Equal(t, true, msgA.Old)
@@ -733,6 +759,7 @@ func TestCleanSticky(t *testing.T) {
 	assert.Nil(t, msgAB)
 
 	msgABar := subAbar.Get(time.Second)
+	require.NotNil(t, msgABar)
 	assert.Equal(t, "a.bar", msgABar.To)
 	assert.Equal(t, "a.bar data", msgABar.Data)
 	assert.Equal(t, true, msgABar.Old)
@@ -753,12 +780,15 @@ func TestFlagForDroppingOldestQueuedMessageWhenPublishingOnFullQueue(t *testing.
 	ps.Publish(&ps.Msg{To: "a", Data: "a4"})
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a2", msg.Data)
 
 	msg = sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a3", msg.Data)
 
 	msg = sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a4", msg.Data)
 
 	msg = sub.Get(time.Millisecond)
@@ -802,11 +832,13 @@ func TestAddSubscriptionToSubscriberWithoutSubscriptions(t *testing.T) {
 	assert.Equal(t, 1, n)
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, 1, msg.Data)
 	assert.Equal(t, false, msg.Old)
 
 	msg = sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "b", msg.To)
 	assert.Equal(t, 2, msg.Data)
 	assert.Equal(t, false, msg.Old)
@@ -825,11 +857,13 @@ func TestAddSubscriptionToSubscriberWithSubscriptions(t *testing.T) {
 	assert.Equal(t, 1, n)
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, 1, msg.Data)
 	assert.Equal(t, false, msg.Old)
 
 	msg = sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "b", msg.To)
 	assert.Equal(t, 2, msg.Data)
 	assert.Equal(t, false, msg.Old)
@@ -846,6 +880,7 @@ func TestRepeatedSubscriptionToSubscriberOnlyReceivesMsgOnce(t *testing.T) {
 	assert.Equal(t, 1, n)
 
 	msg := sub.Get(time.Second)
+	require.NotNil(t, msg)
 	assert.Equal(t, "a", msg.To)
 	assert.Equal(t, 1, msg.Data)
 	assert.Equal(t, false, msg.Old)
