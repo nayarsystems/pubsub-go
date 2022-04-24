@@ -897,6 +897,10 @@ func TestGetNumSubscribers(t *testing.T) {
 
 	ps.NewSubscriber(10, "b")
 	assert.Equal(t, 1, ps.NumSubscribers("a"))
+	assert.Equal(t, 1, ps.NumSubscribers("b"))
+
+	ps.NewSubscriber(10, "b h") // Hidden subscription
+	assert.Equal(t, 1, ps.NumSubscribers("b"))
 
 	sub := ps.NewSubscriber(10, "a")
 	assert.Equal(t, 2, ps.NumSubscribers("a"))

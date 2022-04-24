@@ -241,21 +241,24 @@ func (s *Subscriber) enqueue(msg *Msg) bool {
 	}
 }
 
-// Get returns msg for a topic with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
-func (s *Subscriber) Get(timeout time.Duration) *Msg {
-	if timeout < 0 {
-		return <-s.ch
+// GetWithCtx returns msg for a topic with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
+func (s *Subscriber) GetWithCtx(ctx context.Context, timeout time.Duration) *Msg {
+	if timeout >= 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
 	}
-
-	t := time.NewTimer(timeout)
-	defer t.Stop()
-
 	select {
 	case msg := <-s.ch:
 		return msg
-	case <-t.C:
+	case <-ctx.Done():
 		return nil
 	}
+}
+
+// Get returns msg for a topic with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
+func (s *Subscriber) Get(timeout time.Duration) *Msg {
+	return s.GetWithCtx(context.Background(), timeout)
 }
 
 // GetChan returns channel with messages for this subscriber
@@ -371,12 +374,17 @@ func newResponsePath() (string, error) {
 	return "$ret." + hex.EncodeToString(data), nil
 }
 
-// WaitOne waits for message on topic "to" and returns first one with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
-func WaitOne(to string, timeout time.Duration) *Msg {
-	sub := NewSubscriber(1, to)
+// WaitOneWithCtx waits for message on topic "topic" and returns first one with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
+func WaitOneWithCtx(ctx context.Context, topic string, timeout time.Duration) *Msg {
+	sub := NewSubscriber(1, topic)
 	defer sub.UnsubscribeAll()
 
-	return sub.Get(timeout)
+	return sub.GetWithCtx(ctx, timeout)
+}
+
+// WaitOne waits for message on topic "topic" and returns first one with a timeout (0:return inmediately, <0:block until reception, >0:block for timeout or until reception)
+func WaitOne(topic string, timeout time.Duration) *Msg {
+	return WaitOneWithCtx(context.Background(), topic, timeout)
 }
 
 // Answer replies to this Msg publishing another Msg to msg.Res
@@ -400,10 +408,17 @@ func NumSubscribers(to string) int {
 	muTopics.Lock()
 	defer muTopics.Unlock()
 
+	hidden := 0
 	toInfo := topics[to]
 	if toInfo == nil {
 		return 0
+	} else {
+		for _, suInfo := range toInfo.subs {
+			if suInfo.hidden {
+				hidden++
+			}
+		}
 	}
 
-	return len(toInfo.subs)
+	return len(toInfo.subs) - hidden
 }
