@@ -281,6 +281,9 @@ func (s *Subscriber) Unsubscribe(topic ...string) {
 
 		toInfo := topics[to]
 		if toInfo != nil {
+			if _, ok := toInfo.subs[s]; !ok {
+				panic("unregisterd subscriber")
+			}
 			delete(toInfo.subs, s)
 			if toInfo.canBeDeleted() {
 				delete(topics, to)
