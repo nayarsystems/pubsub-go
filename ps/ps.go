@@ -58,10 +58,11 @@ var topics = map[string]*topicInfo{}
 // Topics are separated by "." (e.g.: "a.b.c") and can optionally have an " " and some flags (e.g. "a.b.c hs").
 //
 // Possible flags:
-//  h: this subscriber is hidden so it doesn't count as delivered on Publish.
-//  s: when subscribing don't receive sticky for this topic.
-//  S: receive sticky from this topic and its children.
-//  r: when publishing on a full queue remove oldest element and insert
+//
+//	h: this subscriber is hidden so it doesn't count as delivered on Publish.
+//	s: when subscribing don't receive sticky for this topic.
+//	S: receive sticky from this topic and its children.
+//	r: when publishing on a full queue remove oldest element and insert
 func NewSubscriber(size int, topic ...string) *Subscriber {
 	newSub := &Subscriber{
 		myTopics: map[string]bool{},
@@ -399,6 +400,9 @@ func (m *Msg) Answer(data interface{}, err error) {
 
 // CleanSticky removes sticky from topic and its children
 func CleanSticky(to string) {
+	muTopics.Lock()
+	defer muTopics.Unlock()
+
 	for t, toInfo := range topics {
 		if t == to || strings.HasPrefix(t, to+".") {
 			toInfo.sticky = nil
