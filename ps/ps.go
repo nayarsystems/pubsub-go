@@ -249,6 +249,15 @@ func (s *Subscriber) GetWithCtx(ctx context.Context, timeout time.Duration) *Msg
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
+	// Let's check the message channel first.
+	// In case there is a message in the channel it will
+	// ensure the message is read before the timeout is reached.
+	// e.g: len(s.ch) > 0 && timeout=0
+	select {
+	case msg := <-s.ch:
+		return msg
+	default:
+	}
 	select {
 	case msg := <-s.ch:
 		return msg
