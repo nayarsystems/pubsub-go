@@ -33,6 +33,22 @@ type Subscriber struct {
 	overflow uint32
 }
 
+type EventType uint
+
+const (
+	HasSubsEventType EventType = iota
+)
+
+type Event struct {
+	Type EventType
+	Data interface{}
+}
+
+type HasSubsEvent struct {
+	Topic   string
+	HasSubs bool
+}
+
 type subscriberInfo struct {
 	hidden             bool
 	ignoreSticky       bool
@@ -89,6 +105,7 @@ func (s *Subscriber) registerTopics(topic ...string) {
 				subs:   map[*Subscriber]*subscriberInfo{},
 			}
 			topics[to] = toInfo
+			publishEvent(&Event{Type: HasSubsEventType, Data: &HasSubsEvent{Topic: to, HasSubs: true}})
 		}
 		subInfo := parseFlags(fullTo)
 		toInfo.subs[s] = subInfo
@@ -142,6 +159,10 @@ func Publish(msg *Msg, opts ...*MsgOpts) int {
 	muTopics.Lock()
 	defer muTopics.Unlock()
 
+	return publish(msg, msgOpts)
+}
+
+func publish(msg *Msg, msgOpts *MsgOpts) int {
 	if msgOpts.Sticky {
 		storeSticky(msg)
 	}
@@ -297,9 +318,14 @@ func (s *Subscriber) Unsubscribe(topic ...string) {
 			delete(toInfo.subs, s)
 			if toInfo.canBeDeleted() {
 				delete(topics, to)
+				publishEvent(&Event{Type: HasSubsEventType, Data: &HasSubsEvent{Topic: to, HasSubs: false}})
 			}
 		}
 	}
+}
+
+func publishEvent(event *Event) {
+	publish(&Msg{To: "$events", Data: event}, &MsgOpts{})
 }
 
 // UnsubscribeAll unsubscribes from all topics

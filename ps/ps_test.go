@@ -911,3 +911,63 @@ func TestGetNumSubscribers(t *testing.T) {
 	ps.UnsubscribeAll()
 	assert.Equal(t, 0, ps.NumSubscribers("a"))
 }
+
+func TestHasSubscribers(t *testing.T) {
+	ps.UnsubscribeAll()
+	tout := time.Microsecond
+
+	// Subscribe to events stream
+	evSub := ps.NewSubscriber(10, "$events")
+
+	// First subscriber to topic "a"
+	sub0 := ps.NewSubscriber(10, "a")
+
+	// Expect to get a HasSubsEvent with HasSubs=true
+	evMsg := evSub.Get(tout)
+	require.NotNil(t, evMsg)
+
+	require.IsType(t, &ps.Event{}, evMsg.Data)
+	ev := evMsg.Data.(*ps.Event)
+
+	require.Equal(t, ps.HasSubsEventType, ev.Type)
+	require.IsType(t, &ps.HasSubsEvent{}, ev.Data)
+
+	hasSubsEv := ev.Data.(*ps.HasSubsEvent)
+
+	require.Equal(t, "a", hasSubsEv.Topic)
+	require.True(t, hasSubsEv.HasSubs)
+
+	// Second subscriber to topic "a"
+	sub1 := ps.NewSubscriber(10, "a")
+
+	// We expect no HasSubsEvent since HasSubs is already true
+	evMsg = evSub.Get(tout)
+	require.Nil(t, evMsg)
+
+	// Second subscriber ends subscription to topic "a"
+	sub1.UnsubscribeAll()
+
+	// We expect no HasSubsEvent since HasSubs is still true
+	// (there is still a subscriber)
+	evMsg = evSub.Get(tout)
+	require.Nil(t, evMsg)
+
+	// First subscriber ends subscription to topic "a".
+	sub0.UnsubscribeAll()
+
+	// Now there are no subscribers to topic "a" so we
+	// expect to get a HasSubsEvent with HasSubs=false
+	evMsg = evSub.Get(tout)
+	require.NotNil(t, evMsg)
+
+	require.IsType(t, &ps.Event{}, evMsg.Data)
+	ev = evMsg.Data.(*ps.Event)
+
+	require.Equal(t, ps.HasSubsEventType, ev.Type)
+	require.IsType(t, &ps.HasSubsEvent{}, ev.Data)
+
+	hasSubsEv = ev.Data.(*ps.HasSubsEvent)
+
+	require.Equal(t, "a", hasSubsEv.Topic)
+	require.False(t, hasSubsEv.HasSubs)
+}
