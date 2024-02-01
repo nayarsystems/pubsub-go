@@ -248,7 +248,10 @@ func (s *Subscriber) enqueueRotating(msg *Msg) {
 		case s.ch <- msg:
 			inserted = true
 		default:
-			<-s.ch
+			select {
+			case <-s.ch:
+			default:
+			}
 		}
 	}
 }

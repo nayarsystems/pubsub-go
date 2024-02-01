@@ -971,3 +971,42 @@ func TestHasSubscribers(t *testing.T) {
 	require.Equal(t, "a", hasSubsEv.Topic)
 	require.False(t, hasSubsEv.HasSubs)
 }
+
+func TestEnqueueRotatingDeadlock(t *testing.T) {
+	ps.UnsubscribeAll()
+
+	sub := ps.NewSubscriber(1, "a r")
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*5))
+	defer cancel()
+
+	go func() {
+		ch := sub.GetChan()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ch:
+			}
+		}
+	}()
+
+	pch := make(chan bool, 1)
+	timer := time.NewTimer(time.Second)
+	for ctx.Err() == nil {
+		go func() {
+			ps.Publish(&ps.Msg{To: "a", Data: true})
+			pch <- true
+		}()
+
+		timer.Reset(time.Second)
+		select {
+		case <-pch:
+		case <-timer.C:
+			t.FailNow()
+		case <-ctx.Done():
+			return
+		}
+		timer.Stop()
+	}
+}
